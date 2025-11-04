@@ -287,6 +287,22 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
           console.log(`💬 [MESSAGES_UPSERT] Message data:`, JSON.stringify(validated.data.data, null, 2));
           await this.conversationService.handleIncomingMessageAtomic(instanceId, validated.data.data);
 
+          // 🤖 Check for auto-responses (only for incoming messages, not sent by me)
+          const messageKey = validated.data.data.key;
+          const message = validated.data.data.message;
+          
+          if (!messageKey.fromMe && message) {
+            // Verificar horário comercial primeiro
+            this.checkBusinessHours(instance, validated.data.data).catch((error: any) => {
+              console.error(`❌ [BUSINESS_HOURS] Error checking business hours:`, error);
+            });
+            
+            // Processar auto-respostas em segundo plano (não bloquear webhook)
+            this.processAutoResponses(instance.id, validated.data.data).catch((error: any) => {
+              console.error(`❌ [AUTO_RESPONSE] Error processing auto-responses:`, error);
+            });
+          }
+
           // ✅ Nome do grupo agora é buscado automaticamente dentro de handleIncomingMessageAtomic
           // quando detecta @g.us no remoteJid. Não precisa mais fazer busca separada aqui.
         }
@@ -697,4 +713,171 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
       });
     }
   };
+
+  /**
+   * Verificar horário comercial e enviar mensagem de ausência se necessário
+   */
+  private async checkBusinessHours(instance: any, messageData: any): Promise<void> {
+    try {
+      // Verificar se o recurso está habilitado
+      if (!instance.outOfOfficeEnabled || !instance.outOfOfficeMessage) {
+        return;
+      }
+      
+      const now = new Date();
+      const currentDay = now.getDay(); // 0=Sunday, 6=Saturday
+      const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      
+      // Verificar se hoje está nos dias úteis
+      const businessDays = instance.businessDays ? JSON.parse(instance.businessDays) : [1, 2, 3, 4, 5];
+      if (!businessDays.includes(currentDay)) {
+        console.log(`⏰ [BUSINESS_HOURS] Today is not a business day`);
+        await this.sendOutOfOfficeMessage(instance, messageData);
+        return;
+      }
+      
+      // Verificar horário comercial
+      if (instance.businessHoursStart && instance.businessHoursEnd) {
+        const isWithinHours = currentTime >= instance.businessHoursStart && currentTime <= instance.businessHoursEnd;
+        
+        if (!isWithinHours) {
+          console.log(`⏰ [BUSINESS_HOURS] Outside business hours (${instance.businessHoursStart}-${instance.businessHoursEnd})`);
+          await this.sendOutOfOfficeMessage(instance, messageData);
+        } else {
+          console.log(`✅ [BUSINESS_HOURS] Within business hours`);
+        }
+      }
+    } catch (error: any) {
+      console.error(`❌ [BUSINESS_HOURS] Error:`, error);
+    }
+  }
+
+  /**
+   * Enviar mensagem de ausência
+   */
+  private async sendOutOfOfficeMessage(instance: any, messageData: any): Promise<void> {
+    try {
+      const remoteJid = messageData.key.remoteJid;
+      const pushName = messageData.pushName || messageData.key.remoteJid?.split('@')[0] || 'Usuário';
+      const now = new Date();
+      
+      // Preparar variáveis
+      const variables: Record<string, string> = {
+        nome: pushName,
+        hora: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        data: now.toLocaleDateString('pt-BR'),
+        dia_semana: now.toLocaleDateString('pt-BR', { weekday: 'long' }),
+        horario_inicio: instance.businessHoursStart || '09:00',
+        horario_fim: instance.businessHoursEnd || '18:00',
+      };
+      
+      // Substituir variáveis na mensagem
+      let message = instance.outOfOfficeMessage;
+      for (const [key, value] of Object.entries(variables)) {
+        const regex = new RegExp(`\\{${key}\\}`, 'g');
+        message = message.replace(regex, value);
+      }
+      
+      console.log(`📤 [OUT_OF_OFFICE] Sending message: "${message}"`);
+      
+      // Enviar via Evolution API
+      const apiService = new EvolutionApiService(instance.evolutionApiUrl, instance.evolutionApiKey);
+      await apiService.sendTextMessage(
+        instance.evolutionInstanceName,
+        remoteJid,
+        message
+      );
+      
+      console.log(`✅ [OUT_OF_OFFICE] Message sent successfully`);
+    } catch (error: any) {
+      console.error(`❌ [OUT_OF_OFFICE] Error:`, error);
+    }
+  }
+
+  /**
+   * Processar auto-respostas para mensagens recebidas
+   */
+  private async processAutoResponses(instanceId: string, messageData: any): Promise<void> {
+    try {
+      const { autoResponseService } = await import('../../services/auto-response-service');
+      const { MessageTypeService } = await import('../../services/messages/MessageTypeService');
+      
+      // Extrair conteúdo da mensagem
+      const messageType = MessageTypeService.getMessageType(messageData);
+      let messageContent = MessageTypeService.extractMessageContent(messageData);
+      
+      // Só processar mensagens de texto
+      if (messageType !== 'TEXT' || !messageContent) {
+        return;
+      }
+      
+      console.log(`🤖 [AUTO_RESPONSE] Checking auto-responses for: "${messageContent}"`);
+      
+      // Verificar se há auto-resposta para esta mensagem
+      const autoResponse = await autoResponseService.checkAutoResponses(instanceId, messageContent);
+      
+      if (!autoResponse) {
+        console.log(`🤖 [AUTO_RESPONSE] No match found`);
+        return;
+      }
+      
+      console.log(`✅ [AUTO_RESPONSE] Match found: "${autoResponse.name}"`);
+      
+      // Preparar variáveis para substituição
+      const remoteJid = messageData.key.remoteJid;
+      const pushName = messageData.pushName || messageData.key.remoteJid?.split('@')[0] || 'Usuário';
+      const now = new Date();
+      
+      const variables: Record<string, string> = {
+        nome: pushName,
+        hora: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        data: now.toLocaleDateString('pt-BR'),
+        dia_semana: now.toLocaleDateString('pt-BR', { weekday: 'long' }),
+      };
+      
+      // Substituir variáveis na resposta
+      let responseMessage = autoResponse.response;
+      if (autoResponse.useVariables) {
+        responseMessage = autoResponseService.replaceVariables(responseMessage, variables);
+      }
+      
+      console.log(`📤 [AUTO_RESPONSE] Sending response: "${responseMessage}"`);
+      
+      // Buscar a instância para obter configurações de API
+      const instance = await prisma.whatsAppInstance.findUnique({
+        where: { id: instanceId },
+      });
+      
+      if (!instance || instance.status !== 'CONNECTED') {
+        console.log(`⚠️ [AUTO_RESPONSE] Instance not connected, skipping`);
+        return;
+      }
+      
+      // Enviar resposta via Evolution API
+      const apiService = new EvolutionApiService(instance.evolutionApiUrl, instance.evolutionApiKey);
+      
+      if (autoResponse.mediaUrl && autoResponse.mediaType) {
+        // Enviar com mídia
+        await apiService.sendMediaMessage(
+          instance.evolutionInstanceName,
+          remoteJid,
+          autoResponse.mediaUrl,
+          responseMessage,
+          autoResponse.mediaType
+        );
+      } else {
+        // Enviar apenas texto
+        await apiService.sendTextMessage(
+          instance.evolutionInstanceName,
+          remoteJid,
+          responseMessage
+        );
+      }
+      
+      console.log(`✅ [AUTO_RESPONSE] Response sent successfully`);
+    } catch (error: any) {
+      console.error(`❌ [AUTO_RESPONSE] Error:`, error);
+      throw error;
+    }
+  }
 }

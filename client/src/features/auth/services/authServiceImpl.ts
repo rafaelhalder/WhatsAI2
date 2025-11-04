@@ -18,6 +18,7 @@ export const authServiceImpl: AuthService = {
             name: string;
             email: string;
             role: string;
+            plan?: string;
           };
         };
       }>(
@@ -40,6 +41,7 @@ export const authServiceImpl: AuthService = {
           id: response.data.data.user.id,
           name: response.data.data.user.name,
           email: response.data.data.user.email,
+          plan: response.data.data.user.plan?.toLowerCase() || 'free', // Normalizar para minúsculo
         },
       };
     } catch (error) {
@@ -63,6 +65,7 @@ export const authServiceImpl: AuthService = {
             name: string;
             email: string;
             role: string;
+            plan?: string;
           };
         };
       }>(
@@ -85,6 +88,7 @@ export const authServiceImpl: AuthService = {
           id: response.data.data.user.id,
           name: response.data.data.user.name,
           email: response.data.data.user.email,
+          plan: response.data.data.user.plan?.toLowerCase() || 'free', // Normalizar para minúsculo
         },
       };
     } catch (error) {
@@ -106,6 +110,7 @@ export const authServiceImpl: AuthService = {
           name: string;
           email: string;
           role: string;
+          plan?: string;
         };
       }>(
         `${API_URL}/auth/me`,
@@ -124,6 +129,7 @@ export const authServiceImpl: AuthService = {
         id: response.data.data.id,
         name: response.data.data.name,
         email: response.data.data.email,
+        plan: response.data.data.plan?.toLowerCase() || 'free', // Normalizar para minúsculo
       };
     } catch (error) {
       if (axios.isAxiosError(error)) {

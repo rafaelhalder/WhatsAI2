@@ -9,7 +9,10 @@ import { dashboardRoutes } from './dashboard';
 import { templateRoutes } from './templates';
 import campaignRoutes from './campaigns';
 import plansRoutes from './plans';
+import billingRoutes from './billing';
+import stripeWebhooksRoutes from './stripe-webhooks';
 import { mediaRoutes } from './media';
+import autoResponsesRoutes from './auto-responses';
 import { authMiddleware } from '@/api/middlewares/auth-middleware';
 import { debounceService } from '../../services/debounce-service';
 import { cacheService } from '../../services/cache-service';
@@ -48,13 +51,18 @@ router.get('/stats', (req, res) => {
 // Authentication routes (public)
 router.use('/auth', authRoutes);
 
+// Stripe webhooks (public, signature verified inside)
+router.use('/webhooks/stripe', stripeWebhooksRoutes);
+
 // Protected routes (require authentication)
 router.use('/instances', authMiddleware, instanceRoutes);
 router.use('/conversations', authMiddleware, conversationRoutes);
 router.use('/dashboard', authMiddleware, dashboardRoutes);
 router.use('/templates', authMiddleware, templateRoutes);
 router.use('/campaigns', authMiddleware, campaignRoutes);
+router.use('/auto-responses', autoResponsesRoutes); // Already has authMiddleware inside
 router.use('/plans', authMiddleware, plansRoutes);
+router.use('/billing', billingRoutes); // Already has authMiddleware inside
 router.use('/settings', authMiddleware, settingsRoutes);
 router.use('/account', authMiddleware, accountRoutes);
 router.use('/media', mediaRoutes);

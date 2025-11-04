@@ -1,316 +1,113 @@
 import React, { useEffect, useRef, useState } from 'react';
-import WaveSurfer from 'wavesurfer.js';
 import { Play, Pause, Download } from 'lucide-react';
-import { audioManager } from '../../utils/audioManager';
 
 interface AudioPlayerProps {
   mediaUrl: string;
   fromMe: boolean;
 }
 
-// Simple request queue to prevent too many concurrent HEAD requests
-class RequestQueue {
-  private queue: Array<{ fn: () => Promise<any>, resolve: (value: any) => void, reject: (error: any) => void }> = [];
-  private running = 0;
-  private maxConcurrent = 3; // Limit to 3 concurrent requests
-
-  async add<T>(fn: () => Promise<T>): Promise<T> {
-    console.log(`[RequestQueue] Adding request to queue. Current queue length: ${this.queue.length}, running: ${this.running}`);
-    return new Promise<T>((resolve, reject) => {
-      this.queue.push({ fn, resolve, reject });
-      this.process();
-    });
-  }
-
-  private async process() {
-    console.log(`[RequestQueue] Processing queue. Running: ${this.running}, Queue length: ${this.queue.length}`);
-    if (this.running >= this.maxConcurrent || this.queue.length === 0) {
-      console.log(`[RequestQueue] Not processing - running: ${this.running}, max: ${this.maxConcurrent}, queue: ${this.queue.length}`);
-      return;
-    }
-
-    this.running++;
-    const item = this.queue.shift()!;
-    console.log(`[RequestQueue] Starting execution of queued function. New running count: ${this.running}`);
-
-    try {
-      const result = await item.fn();
-      console.log(`[RequestQueue] Request completed successfully`);
-      item.resolve(result);
-    } catch (error) {
-      console.error(`[RequestQueue] Request failed:`, error);
-      item.reject(error);
-    } finally {
-      this.running--;
-      console.log(`[RequestQueue] Function completed. New running count: ${this.running}`);
-      this.process(); // Process next item in queue
-    }
-  }
-}
-
-const requestQueue = new RequestQueue();
-
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({ mediaUrl, fromMe }) => {
-  const waveformRef = useRef<HTMLDivElement>(null);
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
-  const audioIdRef = useRef<string>(`audio-${Math.random().toString(36).substr(2, 9)}`);
-  const isMountedRef = useRef<boolean>(true);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState('0:00');
   const [duration, setDuration] = useState('0:00');
+  const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDestroyed, setIsDestroyed] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Transform Spaces URL to proxy URL
   const getProxyUrl = (url: string): string => {
-    console.log('[AudioPlayer] getProxyUrl called with:', url);
     if (url.includes('digitaloceanspaces.com') && url.includes('incoming/audio/')) {
       const pathParts = url.split('incoming/audio/');
       if (pathParts.length > 1) {
-        const filename = pathParts[1];
-        const proxyUrl = `/api/media/audio/${filename}`;
-        console.log('[AudioPlayer] Converted to proxy URL:', proxyUrl);
-        return proxyUrl;
+        const fileName = pathParts[1];
+        return `/api/media/audio/${fileName}`;
       }
     }
-    console.log('[AudioPlayer] No conversion needed, returning original URL');
     return url;
   };
 
   const proxyUrl = getProxyUrl(mediaUrl);
-  console.log('[AudioPlayer] Final proxyUrl:', proxyUrl);
 
-  // Ref to track if initialization has started
-  const initStartedRef = useRef(false);
-
-  useEffect(() => {
-    if (!waveformRef.current || isDestroyed) return;
-
-    // Reset initialization flag when proxyUrl changes (useEffect dependency)
-    initStartedRef.current = false;
-
-    // Prevent multiple initializations
-    if (wavesurferRef.current) return;
-
-    initStartedRef.current = true;
-    let cancelled = false;
-
-    // Pré-fetch do áudio antes de criar o WaveSurfer
-    setIsLoading(true);
-    setLoadError(null);
-    console.log('[AudioPlayer] Starting HEAD request to:', proxyUrl);
-
-    // Function to attempt HEAD request with retry logic
-    const attemptHeadRequest = async (retries = 3, delay = 1000): Promise<Response> => {
-      console.log(`[AudioPlayer] attemptHeadRequest called for URL: ${proxyUrl}`);
-      for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-          console.log(`[AudioPlayer] HEAD request attempt ${attempt}/${retries} to:`, proxyUrl);
-          const response = await fetch(proxyUrl, {
-            method: 'HEAD',
-            signal: AbortSignal.timeout(10000) // 10 second timeout
-          });
-
-          console.log('[AudioPlayer] HEAD response status:', response.status);
-          console.log('[AudioPlayer] HEAD response headers:', Object.fromEntries(response.headers.entries()));
-
-          if (!response.ok) {
-            console.error(`[AudioPlayer] HEAD request failed with status: ${response.status} on attempt ${attempt}`);
-            if (attempt === retries) {
-              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            // Wait before retry
-            await new Promise(resolve => setTimeout(resolve, delay * attempt));
-            continue;
-          }
-
-          console.log('[AudioPlayer] HEAD request successful on attempt', attempt);
-          return response;
-        } catch (error) {
-          console.error(`[AudioPlayer] HEAD request error on attempt ${attempt}:`, error);
-
-          if (attempt === retries) {
-            throw error;
-          }
-
-          // Wait before retry with exponential backoff
-          const waitTime = delay * Math.pow(2, attempt - 1);
-          console.log(`[AudioPlayer] Waiting ${waitTime}ms before retry...`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
-        }
-      }
-      // This should never be reached, but TypeScript needs it
-      throw new Error('All retry attempts failed');
-    };
-
-    // Use request queue to prevent too many concurrent HEAD requests
-    requestQueue.add(() => attemptHeadRequest())
-      .then((res: Response) => {
-        console.log('[AudioPlayer] HEAD response status:', res.status);
-        console.log('[AudioPlayer] HEAD response headers:', Object.fromEntries(res.headers.entries()));
-        if (!res.ok) {
-          console.error('[AudioPlayer] HEAD request failed with status:', res.status);
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-        console.log('[AudioPlayer] HEAD request successful, proceeding with WaveSurfer initialization');
-        if (cancelled) return;
-
-        // Criar WaveSurfer instance
-        const containerEl = waveformRef.current;
-        if (!containerEl) {
-          setLoadError('Erro interno: container não encontrado.');
-          setIsLoading(false);
-          return;
-        }
-        const wavesurfer = WaveSurfer.create({
-          container: containerEl,
-          waveColor: fromMe ? '#ffffff80' : '#00000040',
-          progressColor: fromMe ? '#ffffff' : '#128C7E',
-          cursorColor: fromMe ? '#ffffff' : '#128C7E',
-          barWidth: 2,
-          barRadius: 3,
-          barGap: 2,
-          height: 32,
-          normalize: true,
-          backend: 'MediaElement',
-          mediaControls: false,
-          minPxPerSec: 1,
-        });
-
-        wavesurferRef.current = wavesurfer;
-
-        // Carregar áudio only if component is still mounted and not cancelled
-        if (isMountedRef.current && !cancelled) {
-          wavesurfer.load(proxyUrl);
-        }
-
-        // Eventos
-        wavesurfer.on('ready', () => {
-          if (!isMountedRef.current || isDestroyed) return;
-          setIsLoading(false);
-          const durationSeconds = wavesurfer.getDuration();
-          setDuration(formatTime(durationSeconds));
-        });
-
-        wavesurfer.on('play', () => {
-          if (!isMountedRef.current || isDestroyed) return;
-          setIsPlaying(true);
-          audioManager.play(audioIdRef.current, () => {
-            wavesurfer.pause();
-          });
-        });
-
-        wavesurfer.on('pause', () => {
-          if (!isMountedRef.current || isDestroyed) return;
-          setIsPlaying(false);
-          audioManager.pause(audioIdRef.current);
-        });
-
-        wavesurfer.on('finish', () => {
-          if (!isMountedRef.current || isDestroyed) return;
-          setIsPlaying(false);
-          audioManager.pause(audioIdRef.current);
-        });
-
-        wavesurfer.on('audioprocess', () => {
-          if (!isMountedRef.current || isDestroyed) return;
-          const time = wavesurfer.getCurrentTime();
-          setCurrentTime(formatTime(time));
-        });
-
-        wavesurfer.on('error', (error) => {
-          if (!isMountedRef.current || isDestroyed) return;
-          if (error.name === 'AbortError') {
-            console.debug('WaveSurfer fetch aborted (expected during cleanup)');
-            return;
-          }
-          console.error('WaveSurfer error:', error);
-          setIsLoading(false);
-          setLoadError('Erro ao carregar áudio.');
-        });
-      })
-      .catch((err) => {
-        console.error('[AudioPlayer] HEAD request failed:', err);
-        console.error('[AudioPlayer] Error details:', {
-          message: err.message,
-          name: err.name,
-          stack: err.stack
-        });
-        setIsLoading(false);
-        setLoadError(err.message || 'Erro ao carregar áudio.');
-      });
-
-    return () => {
-      cancelled = true;
-      isMountedRef.current = false;
-      setIsDestroyed(true);
-
-      // Reset initialization flag for next mount
-      initStartedRef.current = false;
-
-      audioManager.pause(audioIdRef.current);
-
-      if (wavesurferRef.current) {
-        const ws = wavesurferRef.current;
-        wavesurferRef.current = null;
-
-        try {
-          ws.unAll();
-        } catch (e) {
-          console.error('[AudioPlayer] Error during ws.unAll()', e);
-        }
-        try {
-          if (ws.isPlaying()) {
-            ws.pause();
-          }
-        } catch (e) {
-          console.error('[AudioPlayer] Error during ws.pause()', e);
-        }
-        try {
-          if (waveformRef.current) {
-            waveformRef.current.innerHTML = '';
-          }
-        } catch (e) {
-          console.error('[AudioPlayer] Error clearing waveform container', e);
-        }
-        try {
-          Promise.resolve(ws.destroy()).catch((e) => {
-            console.debug('[AudioPlayer] WaveSurfer destroy promise rejected (expected during cleanup)', e);
-          });
-        } catch (e) {
-          console.error('[AudioPlayer] Error during ws.destroy()', e);
-        }
-      }
-    };
-  }, [proxyUrl, fromMe]);
+  // Generate static waveform bars (visual only)
+  const waveformBars = Array.from({ length: 40 }, (_, i) => {
+    const baseHeight = 20 + Math.sin(i / 3) * 10 + Math.random() * 15;
+    return Math.max(10, Math.min(40, baseHeight));
+  });
 
   const formatTime = (seconds: number): string => {
+    if (!isFinite(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleLoadedMetadata = () => {
+      setIsLoading(false);
+      setDuration(formatTime(audio.duration));
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(formatTime(audio.currentTime));
+      setProgress((audio.currentTime / audio.duration) * 100);
+    };
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setProgress(0);
+    };
+
+    const handleError = () => {
+      setIsLoading(false);
+      setLoadError('Erro ao carregar áudio');
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+    };
+  }, []);
+
   const handlePlayPause = () => {
-    if (wavesurferRef.current && isMountedRef.current && !isDestroyed) {
-      wavesurferRef.current.playPause();
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play().catch((error) => {
+        console.error('Error playing audio:', error);
+        setLoadError('Erro ao reproduzir');
+      });
     }
   };
 
-  const handleDownload = async () => {
-    try {
-      const link = document.createElement('a');
-      link.href = proxyUrl;
-      // Use appropriate extension based on URL or default to mp3 since we convert to MP3
-      const extension = proxyUrl.includes('.mp3') ? 'mp3' : 'ogg';
-      link.download = `audio.${extension}`;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Erro ao baixar áudio:', error);
-    }
+  const handleDownload = () => {
+    const link = document.createElement('a');
+    link.href = proxyUrl;
+    const extension = proxyUrl.includes('.mp3') ? 'mp3' : 'ogg';
+    link.download = `audio.${extension}`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -320,6 +117,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ mediaUrl, fromMe }) =>
       }`}
       style={{ minWidth: '250px' }}
     >
+      {/* Hidden audio element */}
+      <audio ref={audioRef} src={proxyUrl} preload="metadata" />
+
       {/* Play/Pause Button */}
       <button
         onClick={handlePlayPause}
@@ -342,12 +142,26 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ mediaUrl, fromMe }) =>
         )}
       </button>
 
-      {/* Waveform ou erro */}
-      <div className="flex-1 min-w-0">
+      {/* Waveform visualization */}
+      <div className="flex-1 min-w-0 relative h-8 flex items-center gap-[2px]">
         {loadError ? (
           <div className="text-xs text-red-500 px-2">{loadError}</div>
         ) : (
-          <div ref={waveformRef} className="w-full" />
+          waveformBars.map((height, index) => {
+            const isPassed = progress > (index / waveformBars.length) * 100;
+            return (
+              <div
+                key={index}
+                className="flex-1 rounded-full transition-colors"
+                style={{
+                  height: `${height}%`,
+                  backgroundColor: fromMe 
+                    ? (isPassed ? '#ffffff' : '#ffffff80')
+                    : (isPassed ? '#128C7E' : '#00000040'),
+                }}
+              />
+            );
+          })
         )}
       </div>
 

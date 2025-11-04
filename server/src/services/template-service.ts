@@ -34,6 +34,10 @@ export class TemplateService {
       rendered = rendered.replace(regex, value);
     });
 
+    // Remove any remaining unreplaced variables (keep as is or remove)
+    // For now, we'll remove them to avoid sending {{varname}} in messages
+    rendered = rendered.replace(/\{\{[^}]+\}\}/g, '');
+
     return rendered;
   }
 
@@ -240,13 +244,23 @@ export class TemplateService {
       }
     });
 
-    return templates.map((t): TemplateUsageStats => ({
-      templateId: t.id,
-      name: t.name,
-      usageCount: t.usageCount,
-      lastUsed: t.usageCount > 0 ? t.updatedAt : undefined,
-      category: t.category || undefined
-    }));
+    return templates.map((t): TemplateUsageStats => {
+      const stats: TemplateUsageStats = {
+        templateId: t.id,
+        name: t.name,
+        usageCount: t.usageCount
+      };
+      
+      if (t.usageCount > 0) {
+        stats.lastUsed = t.updatedAt;
+      }
+      
+      if (t.category) {
+        stats.category = t.category;
+      }
+      
+      return stats;
+    });
   }
 
   /**

@@ -1498,13 +1498,23 @@ export class ConversationService {
 
           try {
             const mediaType = this.getMessageType(messageData).toLowerCase() as 'image' | 'video' | 'audio' | 'sticker' | 'document';
-            const mimeType = messageData.message?.imageMessage?.mimetype ||
-                            messageData.message?.videoMessage?.mimetype ||
-                            messageData.message?.audioMessage?.mimetype ||
-                            messageData.message?.stickerMessage?.mimetype ||
-                            messageData.message?.documentMessage?.mimetype;
+            
+            // 🔧 USAR getMimeType() que tem o fallback para audio/ogg
+            let mimeType = this.getMimeType(messageData);
+            
+            // 🔧 Garantir mimeType com base no mediaType se ainda estiver undefined
+            if (!mimeType) {
+              if (mediaType === 'audio') mimeType = 'audio/ogg';
+              else if (mediaType === 'image') mimeType = 'image/jpeg';
+              else if (mediaType === 'video') mimeType = 'video/mp4';
+              else if (mediaType === 'sticker') mimeType = 'image/webp';
+              else if (mediaType === 'document') mimeType = 'application/octet-stream';
+              else mimeType = 'application/octet-stream';
+              
+              console.log(`🔧 [MEDIA_PROCESSING] mimeType undefined, usando fallback baseado em mediaType: ${mimeType}`);
+            }
 
-
+            console.log(`🔍 [MEDIA_PROCESSING] mediaType: ${mediaType}, mimeType: ${mimeType}`);
 
             const downloadedUrl = await this.incomingMediaService.processIncomingMedia({
               messageId: messageData.key.id,
@@ -1991,6 +2001,16 @@ export class ConversationService {
     if (messageData.message?.audioMessage?.mimetype) return messageData.message.audioMessage.mimetype;
     if (messageData.message?.stickerMessage?.mimetype) return messageData.message.stickerMessage.mimetype;
     if (messageData.message?.documentMessage?.mimetype) return messageData.message.documentMessage.mimetype;
+    
+    // 🔧 FALLBACK: Se não tiver mimetype mas tiver a mensagem de tipo específico, usar padrão
+    if (messageData.message?.audioMessage) {
+      console.log('🔧 [MIMETYPE_FALLBACK] audioMessage sem mimetype, usando audio/ogg como padrão');
+      return 'audio/ogg'; // WhatsApp geralmente usa OGG Opus para áudio
+    }
+    if (messageData.message?.imageMessage) return 'image/jpeg';
+    if (messageData.message?.videoMessage) return 'video/mp4';
+    if (messageData.message?.stickerMessage) return 'image/webp';
+    
     return undefined;
   }
 }

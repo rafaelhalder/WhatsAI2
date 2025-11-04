@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Outlet, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import AuthContainer from './features/auth/components/AuthContainer';
 import AuthCard from './features/auth/components/AuthCard';
@@ -17,9 +17,13 @@ import { ChatLayout } from './pages/ChatLayout';
 import { useTheme } from './hooks/useTheme';
 import { socketService } from './services/socketService';
 import { DashboardPage } from './features/dashboard/pages/DashboardPage';
-import { PlansPage } from './features/plans/pages/PlansPage';
 import { TemplatesPage } from './features/templates/pages/TemplatesPage';
 import { CampaignsPage } from './features/campaigns/pages/CampaignsPage';
+import { AutomationsPage } from './features/automations/pages/AutomationsPage';
+import Pricing from './pages/Pricing';
+import Success from './pages/Success';
+import Cancel from './pages/Cancel';
+import Subscription from './pages/Subscription';
 
 function RegisterPage() {
   return (
@@ -70,6 +74,13 @@ export function App() {
   useTheme();
 
   const token = userAuthStore((state) => state.token);
+  const initAuth = userAuthStore((state) => state.initAuth);
+
+  // 🔐 Inicializar autenticação do localStorage
+  useEffect(() => {
+    console.log('🔐 [App] Inicializando autenticação...');
+    initAuth();
+  }, [initAuth]);
 
   // 🔌 Conectar WebSocket globalmente quando o app inicia
   useEffect(() => {
@@ -142,14 +153,7 @@ export function App() {
                 </ProtectedRoute>
               }
               />
-            <Route
-              path="/plans"
-              element={
-                <ProtectedRoute>
-                  <PlansPage />
-                </ProtectedRoute>
-              }
-              />
+            <Route path="/plans" element={<Navigate to="/pricing" replace />} />
             <Route
               path="/templates"
               element={
@@ -166,6 +170,25 @@ export function App() {
                 </ProtectedRoute>
               }
               />
+            <Route
+              path="/automations"
+              element={
+                <ProtectedRoute>
+                  <AutomationsPage />
+                </ProtectedRoute>
+              }
+              />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route
+              path="/subscription"
+              element={
+                <ProtectedRoute>
+                  <Subscription />
+                </ProtectedRoute>
+              }
+              />
+            <Route path="/success" element={<Success />} />
+            <Route path="/cancel" element={<Cancel />} />
             <Route
               path="/chat/:instanceId"
               element={

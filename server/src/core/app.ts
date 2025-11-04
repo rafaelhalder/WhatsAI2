@@ -9,6 +9,10 @@ import { apiRoutes } from '../api/routes';
 import { SocketService } from '../services/socket-service';
 import { cacheService } from '../services/cache-service';
 import { logger, LogContext } from '../services/logger-service';
+import { campaignService } from '../services/campaign-service';
+import { campaignLogger } from '../utils/campaign-logger';
+import { campaignScheduler } from '../jobs/campaign-scheduler';
+import { prisma } from '../database/prisma';
 
 export class App {
   private app: express.Application;
@@ -23,6 +27,7 @@ export class App {
     this.setupMiddleware();
     this.setupRoutes();
     this.setupWebSocket();
+    this.setupCampaignEvents();
     this.setupErrorHandling();
   }
 
@@ -67,6 +72,10 @@ export class App {
         }
       }
     }));
+
+    // Stripe webhook needs RAW body for signature verification
+    // This MUST come BEFORE express.json() middleware
+    this.app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 
     // Body parsing - Increased limits for webhooks with large media
     this.app.use(express.json({ limit: '100mb' }));
@@ -120,6 +129,82 @@ export class App {
     this.socketService.initialize(this.server);
   }
 
+  private setupCampaignEvents(): void {
+    campaignLogger.log('🎯 [APP] Configurando listeners de eventos de campanha...');
+    
+    // Listen to campaign events and emit via WebSocket
+    campaignService.on('message:sent', async ({ messageId, campaignId }: any) => {
+      campaignLogger.log(`📨 [APP] Evento message:sent recebido`, { messageId, campaignId });
+      try {
+        // Get updated progress
+        const message = await prisma.campaignMessage.findUnique({
+          where: { id: messageId },
+          include: { campaign: { include: { instance: true } } }
+        });
+
+        if (message?.campaign) {
+          const userId = message.campaign.userId;
+          const progress = await campaignService.getCampaignProgress(campaignId, userId);
+          
+          campaignLogger.log(`📊 [APP] Emitindo progresso via WebSocket`, { 
+            instanceId: message.campaign.instanceId,
+            progress 
+          });
+          
+          // Emit to user's instance room
+          this.socketService.emitToInstance(message.campaign.instanceId, 'campaign:progress', progress);
+        }
+      } catch (error) {
+        campaignLogger.error('[APP] Erro ao emitir progresso', error);
+      }
+    });
+
+    campaignService.on('message:failed', async ({ messageId, campaignId }: any) => {
+      campaignLogger.log(`❌ [APP] Evento message:failed recebido`, { messageId, campaignId });
+      try {
+        // Get updated progress
+        const message = await prisma.campaignMessage.findUnique({
+          where: { id: messageId },
+          include: { campaign: { include: { instance: true } } }
+        });
+
+        if (message?.campaign) {
+          const userId = message.campaign.userId;
+          const progress = await campaignService.getCampaignProgress(campaignId, userId);
+          
+          // Emit to user's instance room
+          this.socketService.emitToInstance(message.campaign.instanceId, 'campaign:progress', progress);
+        }
+      } catch (error) {
+        campaignLogger.error('[APP] Erro ao emitir progresso (falha)', error);
+      }
+    });
+
+    campaignService.on('campaign:completed', async ({ campaignId }: any) => {
+      campaignLogger.log(`✅ [APP] Evento campaign:completed recebido`, { campaignId });
+      try {
+        const campaign = await prisma.campaign.findUnique({
+          where: { id: campaignId },
+          include: { instance: true }
+        });
+
+        if (campaign) {
+          const progress = await campaignService.getCampaignProgress(campaignId, campaign.userId);
+          
+          campaignLogger.log(`🎉 [APP] Campanha concluída - emitindo evento final`, {
+            campaignId,
+            instanceId: campaign.instanceId
+          });
+          
+          // Emit to user's instance room
+          this.socketService.emitToInstance(campaign.instanceId, 'campaign:completed', progress);
+        }
+      } catch (error) {
+        campaignLogger.error('[APP] Erro ao emitir conclusão', error);
+      }
+    });
+  }
+
   private setupErrorHandling(): void {
     // Sentry error handler - captures all errors automatically
     this.app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -169,14 +254,23 @@ export class App {
 
   public async start(): Promise<void> {
     try {
+      console.log('🚀 [APP] Iniciando cache service...');
       // Initialize cache service
       await cacheService.initialize();
       logger.info(LogContext.CACHE, 'Cache service initialized successfully');
+      console.log('✅ [APP] Cache inicializado');
+
+      // Start campaign scheduler
+      console.log('🚀 [APP] Iniciando campaign scheduler...');
+      campaignScheduler.start();
+      console.log('✅ [APP] Campaign scheduler iniciado');
 
       const port = env.PORT;
+      console.log(`🚀 [APP] Iniciando servidor na porta ${port}...`);
 
       return new Promise((resolve) => {
-        this.server.listen(port, () => {
+        this.server.listen(port, '127.0.0.1', () => {
+          console.log(`✅ [APP] Servidor rodando em http://127.0.0.1:${port}`);
           resolve();
         });
       });
@@ -187,6 +281,9 @@ export class App {
   }
 
   public async stop(): Promise<void> {
+    console.log('⏹️ [APP] Parando campaign scheduler...');
+    campaignScheduler.stop();
+    
     return new Promise((resolve) => {
       this.server.close(() => {
         resolve();

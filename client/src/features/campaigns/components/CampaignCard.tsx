@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Send, Edit2, Trash2, Play, Pause, Square, Calendar, 
-  Users, CheckCircle, XCircle, Clock 
+  Users, CheckCircle, XCircle, Clock, FileDown, BarChart3
 } from 'lucide-react';
 import { Campaign, CAMPAIGN_STATUS_LABELS, CAMPAIGN_STATUS_COLORS } from '../types/campaigns';
 
@@ -13,6 +13,8 @@ interface CampaignCardProps {
   onPause: (id: string) => void;
   onResume: (id: string) => void;
   onCancel: (id: string) => void;
+  onViewReport?: (id: string) => void;
+  onExportCSV?: (id: string) => void;
 }
 
 export const CampaignCard: React.FC<CampaignCardProps> = ({
@@ -22,12 +24,32 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
   onStart,
   onPause,
   onResume,
-  onCancel
+  onCancel,
+  onViewReport,
+  onExportCSV
 }) => {
-  const stats = campaign.stats;
+  const stats = campaign.stats || {
+    totalRecipients: 0,
+    sent: 0,
+    delivered: 0,
+    read: 0,
+    failed: 0,
+    pending: 0
+  };
   const progress = stats.totalRecipients > 0 
     ? ((stats.sent + stats.failed) / stats.totalRecipients) * 100 
     : 0;
+
+  // Debug: Log when campaign stats change
+  React.useEffect(() => {
+    if (campaign.status === 'RUNNING' || campaign.status === 'COMPLETED') {
+      console.log(`[CARD] 🔄 Campaign ${campaign.id} stats updated:`, {
+        status: campaign.status,
+        stats,
+        progress: Math.round(progress)
+      });
+    }
+  }, [campaign.status, stats.sent, stats.delivered, stats.failed, stats.pending]);
 
   const canStart = campaign.status === 'DRAFT' || campaign.status === 'SCHEDULED';
   const canPause = campaign.status === 'RUNNING';
@@ -148,7 +170,31 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
         )}
 
         {/* Actions */}
-        <div className="flex gap-2 pt-3 border-t border-base-300">
+        <div className="flex flex-wrap gap-2 pt-3 border-t border-base-300">
+          {/* View Report Button - Show for completed or running campaigns */}
+          {(campaign.status === 'COMPLETED' || campaign.status === 'RUNNING' || campaign.status === 'PAUSED') && onViewReport && (
+            <button
+              onClick={() => onViewReport(campaign.id)}
+              className="btn btn-sm btn-info"
+              title="Ver relatório detalhado"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Relatório
+            </button>
+          )}
+
+          {/* Export CSV Button - Show for completed campaigns */}
+          {campaign.status === 'COMPLETED' && onExportCSV && (
+            <button
+              onClick={() => onExportCSV(campaign.id)}
+              className="btn btn-sm btn-success"
+              title="Exportar CSV"
+            >
+              <FileDown className="w-4 h-4" />
+              Exportar
+            </button>
+          )}
+
           {canStart && (
             <button
               onClick={() => onStart(campaign.id)}

@@ -1,7 +1,7 @@
 // src/Components/Layout/UserMenu.jsx
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, UserRound, LogIn, UserPlus, LogOut, Settings } from 'lucide-react';
+import { Menu, UserRound, LogIn, UserPlus, LogOut, Settings, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { userAuthStore } from '../features/auth/store/authStore';
 
@@ -98,6 +98,14 @@ function UserMenu() {
                           >
                               <Settings className="mr-2 h-4 w-4" />
                               Settings
+                          </Link>
+                          <Link 
+                              to="/subscription"
+                              className="flex items-center w-full px-4 py-2 text-sm text-base-content hover:bg-base-200"
+                              onClick={() => setIsMenuOpen(false)}
+                          >
+                              <CreditCard className="mr-2 h-4 w-4" />
+                              Assinatura
                           </Link>
                           <div className="my-1 border-t border-base-300"></div>
                           <button 

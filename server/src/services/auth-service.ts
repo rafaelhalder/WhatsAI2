@@ -141,6 +141,7 @@ export class AuthService {
         name: true,
         email: true,
         role: true,
+        plan: true, // ✅ IMPORTANTE: Incluir o plan
         active: true,
         createdAt: true,
         updatedAt: true
@@ -150,6 +151,12 @@ export class AuthService {
     if (!user) {
       throw new Error('User not found');
     }
+
+    console.log('👤 [GET_USER] User data:', {
+      id: user.id,
+      email: user.email,
+      plan: user.plan
+    });
 
     return user;
   }

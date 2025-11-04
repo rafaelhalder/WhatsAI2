@@ -210,6 +210,12 @@ export class IncomingMediaService {
 
       // Processar áudio - converter OGG Opus para MP3 para melhor compatibilidade
       if (mediaType === 'audio' && processedBuffer.length > 0) {
+        // 🔧 GARANTIR que o mimeType seja definido para áudio (mesmo que não especificado)
+        if (!mimeType || mimeType === 'application/octet-stream') {
+          mimeType = 'audio/ogg'; // Default para áudio se não especificado
+          console.log('🔧 [AUDIO_MIMETYPE] mimeType não definido, usando audio/ogg como padrão');
+        }
+        
         try {
           console.log('🎵 [AUDIO_CONVERSION] Iniciando conversão de áudio OGG → MP3');
           const convertedBuffer = await this.convertAudioToMp3(processedBuffer);
@@ -224,6 +230,7 @@ export class IncomingMediaService {
             });
           } else {
             console.warn('⚠️ [AUDIO_CONVERSION] Conversão falhou, mantendo formato original');
+            // 🔧 Manter mimeType original do áudio (já definido acima como audio/ogg)
           }
         } catch (audioError: any) {
           console.error('❌ [AUDIO_CONVERSION] Erro na conversão:', audioError.message);
@@ -231,7 +238,7 @@ export class IncomingMediaService {
             error: audioError.message,
             originalSize: downloadedBuffer.length
           });
-          // Continuar com o buffer original se a conversão falhar
+          // 🔧 Continuar com o buffer original e mimeType audio/ogg (já definido)
         }
       }
 
@@ -436,8 +443,9 @@ export class IncomingMediaService {
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substr(2, 9);
 
-    // Extrair extensão do mimeType ou usar padrão
-    let extension = '.bin'; // fallback
+    // Extrair extensão do mimeType ou usar padrão baseado no mediaType
+    let extension = '.bin'; // fallback final
+    
     if (mimeType) {
       const mimeLower = mimeType.toLowerCase();
       if (mimeLower.includes('jpeg') || mimeLower.includes('jpg')) extension = '.jpg';
@@ -445,11 +453,26 @@ export class IncomingMediaService {
       else if (mimeLower.includes('gif')) extension = '.gif';
       else if (mimeLower.includes('mp4')) extension = '.mp4';
       else if (mimeLower.includes('webm')) extension = '.webm';
-      else if (mimeLower.includes('mp3')) extension = '.mp3';
+      else if (mimeLower.includes('mp3') || mimeLower.includes('mpeg')) extension = '.mp3';
       else if (mimeLower.includes('ogg')) extension = '.ogg';
       else if (mimeLower.includes('webp')) extension = '.webp';
       else if (mimeLower.includes('aac')) extension = '.aac';
       else if (mimeLower.includes('wav')) extension = '.wav';
+    }
+    
+    // 🔧 FALLBACK INTELIGENTE: Se ainda for .bin, usar extensão baseada no mediaType
+    if (extension === '.bin') {
+      console.warn(`⚠️ [GENERATE_FILENAME] mimeType não reconhecido (${mimeType}), usando fallback baseado em mediaType: ${mediaType}`);
+      
+      const mediaTypeExtensions: { [key: string]: string } = {
+        'audio': '.ogg',     // Padrão para áudio (WhatsApp usa OGG Opus)
+        'image': '.jpg',     // Padrão para imagem
+        'video': '.mp4',     // Padrão para vídeo
+        'sticker': '.webp',  // Padrão para sticker
+        'document': '.pdf'   // Padrão para documento
+      };
+      
+      extension = mediaTypeExtensions[mediaType] || '.bin';
     }
 
     // Usar nome original se disponível, senão gerar
@@ -558,6 +581,14 @@ export class IncomingMediaService {
           return 'image/webp';
         }
       }
+      // 🔧 OGG Audio (OggS)
+      if (signature === '4f676753') {
+        return 'audio/ogg';
+      }
+      // 🔧 MP3 Audio (ID3 tag ou MPEG frame sync)
+      if (signature.startsWith('4944') || signature.startsWith('fff') || signature.startsWith('fffb')) {
+        return 'audio/mpeg';
+      }
     }
 
     // Fallback para extensão do arquivo
@@ -571,10 +602,23 @@ export class IncomingMediaService {
       '.webm': 'video/webm',
       '.mp3': 'audio/mpeg',
       '.ogg': 'audio/ogg',
-      '.aac': 'audio/aac'
+      '.aac': 'audio/aac',
+      '.wav': 'audio/wav',
+      '.m4a': 'audio/mp4'
     };
 
-    return mimeTypes[extension] || 'application/octet-stream';
+    const mimeFromExtension = mimeTypes[extension];
+    if (mimeFromExtension) {
+      return mimeFromExtension;
+    }
+    
+    // 🔧 ÚLTIMO FALLBACK: Se o nome do arquivo contém 'audio' no nome, retornar audio/ogg
+    if (fileName.toLowerCase().includes('audio') || fileName.toLowerCase().includes('_ac')) {
+      console.warn(`⚠️ [MIME_DETECTION] Arquivo parece ser áudio mas não detectado, usando audio/ogg: ${fileName}`);
+      return 'audio/ogg';
+    }
+
+    return 'application/octet-stream';
   }
 
   /**

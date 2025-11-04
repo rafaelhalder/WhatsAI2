@@ -21,29 +21,40 @@ router.use(authMiddleware);
  */
 router.post('/', checkCampaignLimit, async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.id;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not authenticated'
+      });
+    }
+    
+    console.log('[CAMPAIGN] Creating campaign with data:', JSON.stringify(req.body, null, 2));
     const data = createCampaignSchema.parse(req.body);
     
     const campaign = await campaignService.createCampaign(userId, data);
     
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: campaign
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({
+      console.error('[CAMPAIGN] Validation error:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
         success: false,
         error: 'Validation error',
         details: error.errors
       });
     } else if (error instanceof Error) {
-      res.status(400).json({
+      console.error('[CAMPAIGN] Error:', error.message);
+      return res.status(400).json({
         success: false,
         error: error.message
       });
     } else {
-      res.status(500).json({
+      console.error('[CAMPAIGN] Unknown error:', error);
+      return res.status(500).json({
         success: false,
         error: 'Internal server error'
       });
@@ -57,7 +68,7 @@ router.post('/', checkCampaignLimit, async (req: Request, res: Response) => {
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.id;
+    const userId = req.userId!;
     const query = listCampaignsQuerySchema.parse(req.query);
     
     const result = await campaignService.listCampaigns(userId, query);
@@ -93,7 +104,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/stats', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.id;
+    const userId = req.userId!;
     const stats = await campaignService.getCampaignStats(userId);
     
     res.json({
@@ -114,25 +125,31 @@ router.get('/stats', async (req: Request, res: Response) => {
  */
 router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.id;
-    const campaignId = req.params.id;
+    const userId = req.userId!;
+    const { id: campaignId } = req.params;
+    
+    if (!campaignId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campaign ID is required'
+      });
+    }
     
     const campaign = await campaignService.getCampaignById(campaignId, userId);
     
     if (!campaign) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         error: 'Campaign not found'
       });
-      return;
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: campaign
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Internal server error'
     });
@@ -145,38 +162,45 @@ router.get('/:id', async (req: Request, res: Response) => {
  */
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.id;
-    const campaignId = req.params.id;
+    const userId = req.userId!;
+    const { id: campaignId } = req.params;
+    
+    if (!campaignId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campaign ID is required'
+      });
+    }
+    
     const data = updateCampaignSchema.parse(req.body);
     
     const campaign = await campaignService.updateCampaign(campaignId, userId, data);
     
     if (!campaign) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         error: 'Campaign not found'
       });
-      return;
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: campaign
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: 'Validation error',
         details: error.errors
       });
     } else if (error instanceof Error) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: error.message
       });
     } else {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: 'Internal server error'
       });
@@ -190,31 +214,37 @@ router.put('/:id', async (req: Request, res: Response) => {
  */
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.id;
-    const campaignId = req.params.id;
+    const userId = req.userId!;
+    const { id: campaignId } = req.params;
+    
+    if (!campaignId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campaign ID is required'
+      });
+    }
     
     const deleted = await campaignService.deleteCampaign(campaignId, userId);
     
     if (!deleted) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         error: 'Campaign not found'
       });
-      return;
     }
     
-    res.json({
+    return res.json({
       success: true,
       message: 'Campaign deleted successfully'
     });
   } catch (error) {
     if (error instanceof Error) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: error.message
       });
     } else {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: 'Internal server error'
       });
@@ -228,8 +258,16 @@ router.delete('/:id', async (req: Request, res: Response) => {
  */
 router.post('/:id/actions', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.id;
-    const campaignId = req.params.id;
+    const userId = req.userId!;
+    const { id: campaignId } = req.params;
+    
+    if (!campaignId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campaign ID is required'
+      });
+    }
+    
     const { action } = campaignActionSchema.parse(req.body);
     
     let campaign;
@@ -242,38 +280,118 @@ router.post('/:id/actions', async (req: Request, res: Response) => {
         campaign = await campaignService.pauseCampaign(campaignId, userId);
         break;
       case 'resume':
-        campaign = await campaignService.startCampaign(campaignId, userId);
+        campaign = await campaignService.resumeCampaign(campaignId, userId);
         break;
       case 'cancel':
         campaign = await campaignService.cancelCampaign(campaignId, userId);
         break;
       default:
-        res.status(400).json({
+        return res.status(400).json({
           success: false,
           error: 'Invalid action'
         });
-        return;
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: campaign,
       message: `Campaign ${action}ed successfully`
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: 'Validation error',
         details: error.errors
       });
     } else if (error instanceof Error) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: error.message
       });
     } else {
-      res.status(500).json({
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+});
+
+/**
+ * GET /api/campaigns/:id/report
+ * Get detailed campaign report with statistics
+ */
+router.get('/:id/report', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { id: campaignId } = req.params;
+    
+    if (!campaignId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campaign ID is required'
+      });
+    }
+    
+    const report = await campaignService.getCampaignReport(campaignId, userId);
+    
+    return res.json({
+      success: true,
+      data: report
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+});
+
+/**
+ * GET /api/campaigns/:id/export
+ * Export campaign results to CSV
+ */
+router.get('/:id/export', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { id: campaignId } = req.params;
+    
+    if (!campaignId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campaign ID is required'
+      });
+    }
+    
+    const csv = await campaignService.exportCampaignToCSV(campaignId, userId);
+    
+    // Get campaign name for filename
+    const campaign = await campaignService.getCampaignById(campaignId, userId);
+    const filename = campaign 
+      ? `campanha-${campaign.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.csv`
+      : `campanha-${campaignId}.csv`;
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    return res.send('\ufeff' + csv); // Add BOM for Excel UTF-8 support
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    } else {
+      return res.status(500).json({
         success: false,
         error: 'Internal server error'
       });
@@ -287,23 +405,30 @@ router.post('/:id/actions', async (req: Request, res: Response) => {
  */
 router.get('/:id/progress', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.id;
-    const campaignId = req.params.id;
+    const userId = req.userId!;
+    const { id: campaignId } = req.params;
+    
+    if (!campaignId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campaign ID is required'
+      });
+    }
     
     const progress = await campaignService.getCampaignProgress(campaignId, userId);
     
-    res.json({
+    return res.json({
       success: true,
       data: progress
     });
   } catch (error) {
     if (error instanceof Error) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: error.message
       });
     } else {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: 'Internal server error'
       });

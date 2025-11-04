@@ -153,6 +153,58 @@ class CampaignsService {
     const data = await response.json();
     return data.data;
   }
+
+  /**
+   * Get detailed campaign report
+   */
+  async getCampaignReport(token: string, id: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/${id}/report`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch campaign report');
+    }
+
+    const data = await response.json();
+    return data.data;
+  }
+
+  /**
+   * Export campaign results to CSV
+   */
+  async exportCampaignCSV(token: string, id: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${id}/export`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to export campaign');
+    }
+
+    // Get filename from Content-Disposition header
+    const contentDisposition = response.headers.get('Content-Disposition');
+    const filename = contentDisposition
+      ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+      : `campanha-${id}.csv`;
+
+    // Download file
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
 }
 
 export const campaignsService = new CampaignsService();
+

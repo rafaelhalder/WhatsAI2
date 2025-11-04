@@ -313,6 +313,14 @@ export interface Campaign {
   pendingCount: number;
   rateLimit: number;
   recipientsData?: Recipient[];
+  stats?: {
+    totalRecipients: number;
+    sent: number;
+    delivered: number;
+    read: number;
+    failed: number;
+    pending: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -327,7 +335,7 @@ export type CampaignStatus =
 
 export interface Recipient {
   phone: string;
-  variables?: Record<string, string>;
+  variables?: Record<string, string> | undefined;
 }
 
 export interface CampaignMessage {

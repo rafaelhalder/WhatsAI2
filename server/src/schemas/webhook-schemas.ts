@@ -300,14 +300,17 @@ export const contactsUpdateDataSchema = z.object({
   /** JID do contato */
   remoteJid: z.string(),
   
-  /** Nome do contato (pushName) */
-  pushName: z.string().optional(),
+  /** Nome do contato (pushName) - pode ser null */
+  pushName: z.string().nullable().optional(),
   
   /** URL da foto de perfil (pode ser null se o contato não tem foto) */
   profilePicUrl: z.string().nullable().optional(),
   
   /** Timestamp da última atualização */
-  timestamp: timestampSchema
+  timestamp: timestampSchema.optional(),
+
+  /** Instance ID (Evolution API v2) */
+  instanceId: z.string().optional()
 }).passthrough();
 
 export const contactsUpdateSchema = baseWebhookSchema.extend({

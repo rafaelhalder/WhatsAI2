@@ -66,13 +66,20 @@ router.head('/audio/*', async (req, res) => {
 
     const fileName = filePath.toLowerCase();
     let contentType = response.ContentType;
-    if (!contentType) {
+    
+    // 🔧 CORREÇÃO: Arquivos .bin são áudios OGG/MP3 salvos com extensão errada
+    // Forçar Content-Type correto para que o navegador possa reproduzir
+    if (!contentType || contentType === 'application/octet-stream') {
       if (fileName.endsWith('.mp3')) {
         contentType = 'audio/mpeg';
       } else if (fileName.endsWith('.ogg')) {
         contentType = 'audio/ogg';
       } else if (fileName.endsWith('.wav')) {
         contentType = 'audio/wav';
+      } else if (fileName.endsWith('.bin')) {
+        // Arquivos .bin na pasta audio/ são áudios OGG
+        contentType = 'audio/ogg';
+        console.log(`[MediaRoutes:HEAD] [${new Date().toISOString()}] ⚠️ Arquivo .bin detectado, forçando audio/ogg`);
       } else {
         contentType = 'audio/mpeg';
       }
@@ -138,7 +145,12 @@ router.get('/audio/*', async (req, res) => {
     const fileName = filePath.toLowerCase();
     let contentType = response.ContentType;
     
-    if (!contentType) {
+    // Fix for .bin files that should be audio/ogg
+    if (fileName.endsWith('.bin') && (contentType === 'application/octet-stream' || !contentType)) {
+      contentType = 'audio/ogg';
+      console.log(`[MediaRoutes:GET] ⚠️ Arquivo .bin detectado, forçando audio/ogg: ${filePath}`);
+    } else if (!contentType || contentType === 'application/octet-stream') {
+      // Fallback to extension-based detection
       if (fileName.endsWith('.mp3')) {
         contentType = 'audio/mpeg';
       } else if (fileName.endsWith('.ogg')) {

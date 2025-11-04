@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Mail, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
@@ -15,6 +15,7 @@ const schema = z.object({
 function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const login = userAuthStore((state) => state.login)
   const loading = userAuthStore((state) => state.loading)
   const error = userAuthStore((state) => state.error)
@@ -38,7 +39,29 @@ function LoginForm() {
     if (success) {
       toast.success('Login realizado com sucesso!');
       reset(); 
-      navigate("/dashboard");
+      
+      // Redirecionar para a página anterior ou dashboard
+      const fromState = (location.state as any)?.from;
+      // Garantir que from é uma string
+      const from = typeof fromState === 'string' ? fromState : (fromState?.pathname || '/dashboard');
+      const selectedPlan = localStorage.getItem('selectedPlan');
+      
+      console.log('🔑 [LoginForm] Login success - Redirect logic:', {
+        fromState,
+        from,
+        locationState: location.state,
+        selectedPlan,
+        willNavigateTo: from === '/pricing' && selectedPlan ? '/pricing' : from
+      });
+      
+      // Se veio da pricing e tinha plano selecionado, voltar para pricing
+      if (from === '/pricing' && selectedPlan) {
+        console.log('✅ [LoginForm] Voltando para /pricing com plano:', selectedPlan);
+        navigate('/pricing');
+      } else {
+        console.log('➡️ [LoginForm] Indo para:', from);
+        navigate(from);
+      }
     } else {
       setError("root", {
         message: error || "Login failed"

@@ -32,7 +32,7 @@ export class DashboardService {
       prisma.whatsAppInstance.count({
         where: {
           userId,
-          status: 'CONNECTED'
+          status: 'connected' // Lowercase - banco usa minúsculo
         }
       }),
 
@@ -66,11 +66,24 @@ export class DashboardService {
     // Calculate delivery rate
     const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
 
-    // Calculate costs (Evolution API + Storage)
+    // Calculate total instances (not just active)
+    const totalInstances = await prisma.whatsAppInstance.count({
+      where: { userId }
+    });
+
+    // Calculate costs using new pricing model
+    const FIXED_COST = 41.00;           // R$ 41/mês - infraestrutura
+    const COST_PER_INSTANCE = 5.00;     // R$ 5/mês por instância
+    const COST_PER_GB_STORAGE = 0.02;   // R$ 0.02/GB
+    
+    const storageGB = (mediaMessages * 0.5) / 1024; // 500KB por arquivo → GB
+    const instanceCost = totalInstances * COST_PER_INSTANCE;
+    const storageCost = storageGB * COST_PER_GB_STORAGE;
+    
     const costs = {
-      evolutionApi: activeInstances * 10, // $10 per instance/month
-      storage: mediaMessages * 0.01, // $0.01 per media message
-      total: activeInstances * 10 + mediaMessages * 0.01
+      evolutionApi: instanceCost,
+      storage: storageCost,
+      total: FIXED_COST + instanceCost + storageCost
     };
 
     return {
@@ -79,7 +92,7 @@ export class DashboardService {
       totalUsers,
       totalConversations,
       deliveryRate: Math.round(deliveryRate * 100) / 100,
-      storageUsed: mediaMessages * 1024 * 1024, // ~1MB per media
+      storageUsed: mediaMessages * 0.5 * 1024 * 1024, // 500KB por mídia em bytes
       costs
     };
   }
@@ -184,6 +197,11 @@ export class DashboardService {
     const costData: CostData[] = [];
     const today = new Date();
 
+    // Pricing constants (in BRL)
+    const FIXED_INFRASTRUCTURE_COST = 41.00;  // R$ 41/mês - servidor, domínio, etc
+    const COST_PER_INSTANCE = 5.00;           // R$ 5/mês por instância
+    const COST_PER_GB_STORAGE = 0.02;         // R$ 0.02/GB - DigitalOcean Spaces
+
     for (let i = months - 1; i >= 0; i--) {
       const monthDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
       const nextMonth = new Date(today.getFullYear(), today.getMonth() - i + 1, 1);
@@ -194,27 +212,45 @@ export class DashboardService {
       const instancesCount = await prisma.whatsAppInstance.count({
         where: {
           userId,
-          createdAt: { lt: nextMonth }
+          createdAt: { lt: nextMonth },
+          // Only count instances that weren't deleted before the month started
+          OR: [
+            { updatedAt: { gte: monthDate } },
+            { status: { not: 'ERROR' } }
+          ]
         }
       });
 
-      // Get media messages from this month
-      const mediaCount = await prisma.message.count({
+      // Calculate storage usage for this month
+      // Get all media files stored up to this month
+      const mediaFiles = await prisma.message.findMany({
         where: {
           instance: { userId },
           mediaUrl: { not: null },
-          createdAt: {
-            gte: monthDate,
-            lt: nextMonth
-          }
+          createdAt: { lt: nextMonth }
+        },
+        select: {
+          mediaUrl: true
         }
       });
 
+      // Estimate storage: average media file is ~500KB
+      // TODO: For production, implement actual storage calculation:
+      // 1. Store file size when uploading to Spaces (add 'mediaSize' field to Message model)
+      // 2. Query S3/Spaces API to get actual bucket size
+      // 3. Use AWS SDK: await s3.headObject({ Bucket, Key }).ContentLength
+      const estimatedStorageGB = (mediaFiles.length * 0.5) / 1024; // Convert MB to GB
+      
+      // Calculate costs
+      const instanceCost = instancesCount * COST_PER_INSTANCE;
+      const storageCost = estimatedStorageGB * COST_PER_GB_STORAGE;
+      const totalCost = FIXED_INFRASTRUCTURE_COST + instanceCost + storageCost;
+
       costData.push({
         month: monthStr,
-        evolutionApi: instancesCount * 10,
-        storage: mediaCount * 0.01,
-        total: instancesCount * 10 + mediaCount * 0.01
+        evolutionApi: instanceCost,
+        storage: storageCost,
+        total: totalCost
       });
     }
 

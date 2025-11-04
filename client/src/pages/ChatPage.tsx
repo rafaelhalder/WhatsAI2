@@ -615,6 +615,7 @@ export const ChatPage: React.FC = () => {
         ) : (
           messages.map((message) => {
             const isSticker = message.messageType?.toUpperCase() === 'STICKER';
+            const isAudio = message.messageType?.toUpperCase() === 'AUDIO';
             
             return (
               <div
@@ -636,6 +637,28 @@ export const ChatPage: React.FC = () => {
                       message.fromMe ? 'text-right text-base-content/60' : 'text-left text-base-content/50'
                     }`}>
                       {formatTime(message.timestamp)}
+                    </div>
+                  </div>
+                ) : isAudio ? (
+                  /* Áudios sem balão de mensagem */
+                  <div className="relative">
+                    {message.mediaUrl && (
+                      <MediaMessage
+                        mediaUrl={message.mediaUrl}
+                        mediaType="audio"
+                        fromMe={message.fromMe}
+                      />
+                    )}
+                    {/* Timestamp pequeno abaixo do áudio */}
+                    <div className={`text-[10px] mt-1 ${
+                      message.fromMe ? 'text-right text-base-content/60' : 'text-left text-base-content/50'
+                    }`}>
+                      {formatTime(message.timestamp)}
+                      {message.fromMe && (
+                        <span className="ml-1 inline-block">
+                          <MessageStatusCheck status={message.status} />
+                        </span>
+                      )}
                     </div>
                   </div>
                 ) : (

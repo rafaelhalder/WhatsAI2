@@ -96,7 +96,7 @@ class PlansService {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ newPlan })
+      body: JSON.stringify({ plan: newPlan })
     });
 
     if (!response.ok) {
@@ -118,7 +118,7 @@ class PlansService {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ newPlan })
+      body: JSON.stringify({ plan: newPlan })
     });
 
     if (!response.ok) {

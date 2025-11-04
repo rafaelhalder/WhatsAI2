@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { Campaign, CreateCampaignRequest } from '../types/campaigns';
 import { campaignsService } from '../services/campaignsService';
 import { templatesService } from '../../templates/services/templatesService';
@@ -21,14 +21,17 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({
   instances
 }) => {
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [message, setMessage] = useState('');
   const [templateId, setTemplateId] = useState('');
   const [instanceId, setInstanceId] = useState('');
-  const [recipients, setRecipients] = useState<Array<{ phoneNumber: string; name?: string }>>([]);
+  const [scheduledFor, setScheduledFor] = useState('');
+  const [recipients, setRecipients] = useState<Array<{ phoneNumber: string; variables: Record<string, string> }>>([]);
   const [recipientInput, setRecipientInput] = useState('');
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState(1);
+  const [templateVariables, setTemplateVariables] = useState<string[]>([]);
 
   const isEditMode = !!editCampaign;
 
@@ -41,10 +44,12 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({
   useEffect(() => {
     if (editCampaign) {
       setName(editCampaign.name);
-      setDescription(editCampaign.description || '');
       setTemplateId(editCampaign.templateId);
       setInstanceId(editCampaign.instanceId);
-      setRecipients(editCampaign.recipients.map(r => ({ phoneNumber: r.phoneNumber, name: r.name })));
+      setRecipients(editCampaign.recipients.map(r => ({ 
+        phoneNumber: r.phoneNumber, 
+        variables: r.variables || {}
+      })));
     } else {
       resetForm();
     }
@@ -63,40 +68,95 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({
 
   const resetForm = () => {
     setName('');
-    setDescription('');
+    setMessage('');
     setTemplateId('');
     setInstanceId('');
+    setScheduledFor('');
     setRecipients([]);
     setRecipientInput('');
     setError(null);
+    setStep(1);
+  };
+
+  const handleTemplateChange = (newTemplateId: string) => {
+    setTemplateId(newTemplateId);
+    if (newTemplateId) {
+      const selectedTemplate = templates.find(t => t.id === newTemplateId);
+      if (selectedTemplate) {
+        setMessage(selectedTemplate.content);
+        // Extract variables from template
+        const variables = templatesService.extractVariables(selectedTemplate.content);
+        setTemplateVariables(variables);
+      }
+    } else {
+      setMessage('');
+      setTemplateVariables([]);
+    }
+  };
+
+  const validatePhone = (phone: string): boolean => {
+    const phoneRegex = /^55\d{10,11}$/;
+    return phoneRegex.test(phone.replace(/\D/g, ''));
   };
 
   const addRecipient = () => {
     if (!recipientInput.trim()) return;
 
-    // Parse format: "5511999999999,Nome" or just "5511999999999"
     const lines = recipientInput.split('\n').filter(line => line.trim());
-    const newRecipients = lines.map(line => {
-      const [phoneNumber, name] = line.split(',').map(s => s.trim());
-      return { phoneNumber, name };
+    const newRecipients: Array<{ phoneNumber: string; variables: Record<string, string> }> = [];
+    const errors: string[] = [];
+
+    // Detecta variáveis da mensagem atual
+    const messageVars = templatesService.extractVariables(message);
+
+    lines.forEach((line, index) => {
+      const parts = line.split(',').map(s => s.trim());
+      const phoneNumber = parts[0];
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
+
+      if (!validatePhone(cleanPhone)) {
+        errors.push(`Linha ${index + 1}: número inválido`);
+      } else {
+        // Mapeia as partes para as variáveis
+        const variables: Record<string, string> = {};
+        
+        // Se tiver variáveis no template, mapeia em ordem
+        messageVars.forEach((varName, idx) => {
+          if (parts[idx + 1]) {
+            variables[varName] = parts[idx + 1];
+          }
+        });
+
+        newRecipients.push({ phoneNumber: cleanPhone, variables });
+      }
     });
+
+    if (errors.length > 0) {
+      setError(errors.join(', '));
+      return;
+    }
+
+    if (newRecipients.length + recipients.length > 1000) {
+      setError('Limite de 1000 destinatários');
+      return;
+    }
 
     setRecipients([...recipients, ...newRecipients]);
     setRecipientInput('');
+    setError(null);
   };
 
   const removeRecipient = (index: number) => {
     setRecipients(recipients.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const canGoNext = () => {
+    if (step === 1) return name.trim() && message.trim();
+    if (step === 2) return instanceId && recipients.length > 0;
+    return false;
+  };
 
-    if (!name.trim() || !templateId || !instanceId || recipients.length === 0) {
-      setError('Preencha todos os campos obrigatórios e adicione pelo menos um destinatário');
-      return;
-    }
-
+  const handleSubmit = async () => {
     setLoading(true);
     setError(null);
 
@@ -106,12 +166,13 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({
 
       const campaignData: CreateCampaignRequest = {
         name: name.trim(),
-        description: description.trim() || undefined,
-        templateId,
+        message: message.trim(),
+        templateId: templateId || undefined,
         instanceId,
+        scheduledFor: scheduledFor || undefined,
         recipients: recipients.map(r => ({
-          phoneNumber: r.phoneNumber,
-          name: r.name || undefined
+          phone: r.phoneNumber,
+          variables: Object.keys(r.variables).length > 0 ? r.variables : undefined
         }))
       };
 
@@ -119,7 +180,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({
       if (isEditMode && editCampaign) {
         result = await campaignsService.updateCampaign(token, editCampaign.id, {
           name: campaignData.name,
-          description: campaignData.description
+          description: undefined
         });
       } else {
         result = await campaignsService.createCampaign(token, campaignData);
@@ -130,7 +191,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Error saving campaign:', err);
-      setError(err.message || 'Erro ao salvar campanha');
+      setError(err.message || 'Erro ao salvar');
     } finally {
       setLoading(false);
     }
@@ -140,183 +201,245 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box max-w-4xl max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-2xl font-bold">
+      <div className="modal-box max-w-2xl">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold">
             {isEditMode ? 'Editar Campanha' : 'Nova Campanha'}
           </h3>
           <button onClick={onClose} className="btn btn-sm btn-circle btn-ghost" disabled={loading}>
-            <X className="w-5 h-5" />
+            <X size={18} />
           </button>
         </div>
 
-        {error && (
-          <div className="alert alert-error mb-4">
-            <span>{error}</span>
+        {!isEditMode && (
+          <div className="flex items-center justify-center mb-8 gap-2">
+            <div className={'flex items-center justify-center w-8 h-8 rounded-full ' + (step >= 1 ? 'bg-primary text-primary-content' : 'bg-base-300')}>
+              {step > 1 ? <Check size={16} /> : '1'}
+            </div>
+            <div className={'h-1 w-12 ' + (step >= 2 ? 'bg-primary' : 'bg-base-300')}></div>
+            <div className={'flex items-center justify-center w-8 h-8 rounded-full ' + (step >= 2 ? 'bg-primary text-primary-content' : 'bg-base-300')}>
+              {step > 2 ? <Check size={16} /> : '2'}
+            </div>
+            <div className={'h-1 w-12 ' + (step >= 3 ? 'bg-primary' : 'bg-base-300')}></div>
+            <div className={'flex items-center justify-center w-8 h-8 rounded-full ' + (step >= 3 ? 'bg-primary text-primary-content' : 'bg-base-300')}>
+              {step > 3 ? <Check size={16} /> : '3'}
+            </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-            {/* Name */}
-            <div className="form-control">
+        {error && (
+          <div className="alert alert-error mb-4">
+            <span className="text-sm">{error}</span>
+          </div>
+        )}
+
+        {step === 1 && (
+          <div className="space-y-4">
+            <input
+              type="text"
+              className="input input-bordered w-full"
+              placeholder="Nome da campanha"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={loading}
+            />
+
+            <select
+              className="select select-bordered w-full"
+              value={templateId}
+              onChange={(e) => handleTemplateChange(e.target.value)}
+              disabled={loading || isEditMode}
+            >
+              <option value="">Sem template (digitar mensagem)</option>
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+
+            <div>
+              <textarea
+                className="textarea textarea-bordered w-full h-32"
+                placeholder="Mensagem"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                disabled={loading}
+                maxLength={4096}
+              />
+              <div className="text-xs text-base-content/60 text-right mt-1">{message.length}/4096</div>
+            </div>
+
+            <div>
               <label className="label">
-                <span className="label-text font-semibold">Nome da Campanha *</span>
+                <span className="label-text">Agendamento (opcional)</span>
               </label>
               <input
-                type="text"
-                className="input input-bordered"
-                placeholder="Ex: Black Friday 2025"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
+                type="datetime-local"
+                className="input input-bordered w-full"
+                value={scheduledFor}
+                onChange={(e) => setScheduledFor(e.target.value)}
                 disabled={loading}
+                min={new Date().toISOString().slice(0, 16)}
               />
+              <div className="text-xs text-base-content/60 mt-1">
+                Deixe em branco para iniciar manualmente
+              </div>
             </div>
+          </div>
+        )}
 
-            {/* Description */}
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-semibold">Descrição</span>
-              </label>
+        {step === 2 && !isEditMode && (
+          <div className="space-y-4">
+            <select
+              className="select select-bordered w-full"
+              value={instanceId}
+              onChange={(e) => setInstanceId(e.target.value)}
+              disabled={loading}
+            >
+              <option value="">Selecione a instância</option>
+              {instances.map((instance) => (
+                <option key={instance.id} value={instance.id}>
+                  {instance.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Info sobre variáveis */}
+            {templateVariables.length > 0 && (
+              <div className="text-xs bg-info/10 p-2 rounded">
+                <strong>Variáveis detectadas:</strong> {templateVariables.join(', ')}
+                <br />
+                <strong>Formato:</strong> telefone,{templateVariables.join(',')}
+                <br />
+                <strong>Exemplo:</strong> 5511999999999,{templateVariables.map(v => `valor_${v}`).join(',')}
+              </div>
+            )}
+
+            <div className="flex gap-2">
               <textarea
-                className="textarea textarea-bordered"
-                placeholder="Descrição opcional da campanha"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                className="textarea textarea-bordered flex-1 h-24"
+                placeholder={
+                  templateVariables.length > 0
+                    ? `5511999999999,${templateVariables.join(',')}`
+                    : "5511999999999"
+                }
+                value={recipientInput}
+                onChange={(e) => setRecipientInput(e.target.value)}
                 disabled={loading}
-                rows={2}
               />
-            </div>
-
-            {/* Template */}
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-semibold">Template *</span>
-              </label>
-              <select
-                className="select select-bordered"
-                value={templateId}
-                onChange={(e) => setTemplateId(e.target.value)}
-                required
-                disabled={loading || isEditMode}
+              <button
+                type="button"
+                onClick={addRecipient}
+                className="btn btn-primary btn-square"
+                disabled={loading || !recipientInput.trim()}
               >
-                <option value="">Selecione um template</option>
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
+                <Plus size={20} />
+              </button>
             </div>
 
-            {/* Instance */}
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-semibold">Instância WhatsApp *</span>
-              </label>
-              <select
-                className="select select-bordered"
-                value={instanceId}
-                onChange={(e) => setInstanceId(e.target.value)}
-                required
-                disabled={loading || isEditMode}
-              >
-                <option value="">Selecione uma instância</option>
-                {instances.map((instance) => (
-                  <option key={instance.id} value={instance.id}>
-                    {instance.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Recipients */}
-            {!isEditMode && (
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-semibold">Destinatários *</span>
-                </label>
-                <div className="text-sm text-base-content/60 mb-2">
-                  Formato: <code className="badge badge-sm badge-outline">5511999999999</code> ou{' '}
-                  <code className="badge badge-sm badge-outline">5511999999999,Nome</code>
-                </div>
-                <div className="flex gap-2 items-start">
-                  <textarea
-                    className="textarea textarea-bordered flex-1 min-h-[100px]"
-                    placeholder="5511999999999,João Silva&#10;5511888888888,Maria Santos&#10;5511777777777,Pedro Costa"
-                    value={recipientInput}
-                    onChange={(e) => setRecipientInput(e.target.value)}
-                    disabled={loading}
-                    rows={4}
-                  />
-                  <button
-                    type="button"
-                    onClick={addRecipient}
-                    className="btn btn-primary btn-square"
-                    disabled={loading}
-                    title="Adicionar destinatários"
-                  >
-                    <Plus className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Recipients List */}
-                {recipients.length > 0 && (
-                  <div className="mt-3 bg-base-200 rounded-lg p-3 max-h-48 overflow-y-auto">
-                    <p className="text-sm font-semibold mb-2">
-                      {recipients.length} destinatário(s) adicionado(s):
-                    </p>
-                    <div className="space-y-1">
-                      {recipients.map((recipient, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between bg-base-100 rounded px-3 py-2"
-                        >
-                          <span className="text-sm">
-                            {recipient.phoneNumber}
-                            {recipient.name && ` - ${recipient.name}`}
+            {recipients.length > 0 && (
+              <div className="bg-base-200 rounded-lg p-3 max-h-40 overflow-y-auto">
+                <div className="text-xs font-semibold mb-2">{recipients.length} destinatários</div>
+                <div className="space-y-1">
+                  {recipients.map((recipient, index) => (
+                    <div key={index} className="flex items-center justify-between bg-base-100 rounded px-2 py-1 text-sm">
+                      <span>
+                        {recipient.phoneNumber}
+                        {Object.keys(recipient.variables).length > 0 && (
+                          <span className="text-xs text-base-content/60 ml-2">
+                            ({Object.values(recipient.variables).join(', ')})
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => removeRecipient(index)}
-                            className="btn btn-xs btn-ghost text-error"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeRecipient(index)}
+                        className="btn btn-xs btn-ghost text-error"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
           </div>
+        )}
 
-          {/* Footer */}
-          <div className="flex gap-3 mt-6 pt-4 border-t border-base-300">
+        {step === 3 && !isEditMode && (
+          <div className="space-y-4">
+            <div className="bg-base-200 rounded-lg p-4 space-y-3">
+              <div>
+                <div className="text-xs text-base-content/60">Campanha</div>
+                <div className="font-semibold">{name}</div>
+              </div>
+              <div>
+                <div className="text-xs text-base-content/60">Instância</div>
+                <div>{instances.find(i => i.id === instanceId)?.name}</div>
+              </div>
+              <div>
+                <div className="text-xs text-base-content/60">Destinatários</div>
+                <div>{recipients.length} contatos</div>
+              </div>
+              <div>
+                <div className="text-xs text-base-content/60">Mensagem</div>
+                <div className="text-sm bg-base-100 p-2 rounded max-h-32 overflow-y-auto">{message}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isEditMode && (
+          <div className="space-y-4">
+            <input
+              type="text"
+              className="input input-bordered w-full"
+              placeholder="Nome da campanha"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+        )}
+
+        <div className="flex gap-2 mt-6">
+          {step > 1 && !isEditMode && (
             <button
               type="button"
-              onClick={onClose}
-              className="btn btn-ghost flex-1"
+              onClick={() => setStep(step - 1)}
+              className="btn btn-ghost"
               disabled={loading}
             >
-              Cancelar
+              <ArrowLeft size={18} />
+              Voltar
             </button>
+          )}
+          
+          <div className="flex-1"></div>
+
+          {!isEditMode && step < 3 && (
             <button
-              type="submit"
-              className="btn btn-primary flex-1"
+              type="button"
+              onClick={() => setStep(step + 1)}
+              className="btn btn-primary"
+              disabled={loading || !canGoNext()}
+            >
+              Avançar
+              <ArrowRight size={18} />
+            </button>
+          )}
+
+          {(isEditMode || step === 3) && (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="btn btn-primary"
               disabled={loading}
             >
-              {loading ? (
-                <span className="loading loading-spinner"></span>
-              ) : (
-                isEditMode ? 'Salvar Alterações' : 'Criar Campanha'
-              )}
+              {loading ? <span className="loading loading-spinner loading-sm"></span> : (isEditMode ? 'Salvar' : 'Criar')}
             </button>
-          </div>
-        </form>
+          )}
+        </div>
       </div>
       <div className="modal-backdrop" onClick={onClose}></div>
     </div>

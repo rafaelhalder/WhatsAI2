@@ -22,8 +22,8 @@ export interface Campaign {
   scheduledAt?: string;
   startedAt?: string;
   completedAt?: string;
-  stats: CampaignStats;
-  settings: CampaignSettings;
+  stats?: CampaignStats; // Opcional porque pode não vir na criação
+  settings?: CampaignSettings; // Opcional também
   createdAt: string;
   updatedAt: string;
 }
@@ -56,15 +56,17 @@ export interface CampaignSettings {
 export interface CreateCampaignRequest {
   name: string;
   description?: string;
-  templateId: string;
+  message: string; // Mensagem da campanha (obrigatório)
+  templateId?: string;
   instanceId: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'audio' | 'document';
   recipients: Array<{
-    phoneNumber: string;
-    name?: string;
+    phone: string; // Backend espera 'phone', não 'phoneNumber'
     variables?: Record<string, string>;
   }>;
-  scheduledAt?: string;
-  settings?: Partial<CampaignSettings>;
+  scheduledFor?: string;
+  rateLimit?: number;
 }
 
 export interface UpdateCampaignRequest {
