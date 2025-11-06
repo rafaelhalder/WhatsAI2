@@ -15,12 +15,12 @@ function Navbar() {
   const isAuthenticated = !!token;
   const navItems = isAuthenticated 
     ? [
-        { name: "Dashboard", path: "/dashboard" },
-        { name: "Instâncias", path: "/instances" },
-        { name: "Templates", path: "/templates" },
-        { name: "Campanhas", path: "/campaigns" },
-        { name: "Automações", path: "/automations" },
-        { name: "Assinatura", path: "/subscription" },
+        { name: "Dashboard", path: "/dashboard", dataTour: "dashboard" },
+        { name: "Instâncias", path: "/instances", dataTour: "create-instance" },
+        { name: "Templates", path: "/templates", dataTour: "templates" },
+        { name: "Campanhas", path: "/campaigns", dataTour: "campaigns" },
+        { name: "Automações", path: "/automations", dataTour: "automations" },
+        { name: "Assinatura", path: "/subscription", dataTour: "subscription" },
       ]
     : [
         { name: "Home", path: "/" },
@@ -82,6 +82,7 @@ function Navbar() {
                   }`} to={item.path}
                 key={item.name}
                 onClick={() => setActiveItem(item.name)}
+                data-tour={item.dataTour || undefined}
               >
                 {item.name}
               </Link>
@@ -116,6 +117,7 @@ function Navbar() {
                   setActiveItem(item.name);
                   setMobileMenuOpen(false);
                 }}
+                data-tour={item.dataTour || undefined}
               >
                 {item.name}
               </Link>

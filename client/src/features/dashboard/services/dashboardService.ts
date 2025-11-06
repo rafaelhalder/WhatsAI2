@@ -79,7 +79,7 @@ class DashboardService {
     return data.data || [];
   }
 
-  async getCostData(filters?: Partial<DashboardFilters>): Promise<CostData[]> {
+  async getCostData(token: string, filters?: Partial<DashboardFilters>): Promise<CostData[]> {
     const params = new URLSearchParams();
 
     if (filters?.dateRange) {
@@ -87,7 +87,11 @@ class DashboardService {
       params.append('endDate', filters.dateRange.end.toISOString());
     }
 
-    const response = await fetch(`${this.baseUrl}/costs?${params}`);
+    const response = await fetch(`${this.baseUrl}/costs?${params}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch cost data');
     }
@@ -95,7 +99,7 @@ class DashboardService {
     return response.json();
   }
 
-  async getUserActivity(filters?: Partial<DashboardFilters>): Promise<UserActivityData[]> {
+  async getUserActivity(token: string, filters?: Partial<DashboardFilters>): Promise<UserActivityData[]> {
     const params = new URLSearchParams();
 
     if (filters?.dateRange) {
@@ -103,7 +107,11 @@ class DashboardService {
       params.append('endDate', filters.dateRange.end.toISOString());
     }
 
-    const response = await fetch(`${this.baseUrl}/users/activity?${params}`);
+    const response = await fetch(`${this.baseUrl}/users/activity?${params}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch user activity data');
     }
@@ -111,10 +119,40 @@ class DashboardService {
     return response.json();
   }
 
-  async getActivityLog(limit: number = 50): Promise<ActivityLog[]> {
-    const response = await fetch(`${this.baseUrl}/activity?limit=${limit}`);
+  async getActivityLog(token: string, limit: number = 50): Promise<ActivityLog[]> {
+    const response = await fetch(`${this.baseUrl}/activity?limit=${limit}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch activity log');
+    }
+
+    return response.json();
+  }
+
+  async getPeakHours(token: string): Promise<{ hour: number; count: number }[]> {
+    const response = await fetch(`${this.baseUrl}/peak-hours`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch peak hours data');
+    }
+
+    return response.json();
+  }
+
+  async getResponseTimeStats(token: string): Promise<{ average: number; median: number; min: number; max: number }> {
+    const response = await fetch(`${this.baseUrl}/response-time`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch response time stats');
     }
 
     return response.json();

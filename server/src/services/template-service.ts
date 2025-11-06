@@ -134,7 +134,7 @@ export class TemplateService {
     });
 
     return {
-      templates: templates.map(t => this.formatTemplate(t)),
+      templates: templates.map((t: any) => this.formatTemplate(t)),
       total
     };
   }
@@ -244,7 +244,7 @@ export class TemplateService {
       }
     });
 
-    return templates.map((t): TemplateUsageStats => {
+    return templates.map((t: any): TemplateUsageStats => {
       const stats: TemplateUsageStats = {
         templateId: t.id,
         name: t.name,
@@ -297,7 +297,7 @@ export class TemplateService {
     });
 
     const result: Record<string, number> = {};
-    templates.forEach(t => {
+    templates.forEach((t: any) => {
       const category = t.category || 'uncategorized';
       result[category] = t._count.category;
     });

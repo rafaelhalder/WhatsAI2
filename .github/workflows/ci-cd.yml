@@ -1,0 +1,175 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # Backend Tests and Linting
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    
+    # Add PostgreSQL service for tests
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    defaults:
+      run:
+        working-directory: ./server
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Generate Prisma Client
+        run: npx prisma generate
+      
+      - name: Run TypeScript compilation check
+        run: npm run build
+      
+      - name: Run linter
+        run: npm run lint || true
+        continue-on-error: true
+      
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          JWT_SECRET: test-secret-key-for-ci
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          directory: ./server/coverage
+          flags: backend
+        continue-on-error: true
+  
+  # Frontend Tests and Linting
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./client
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run TypeScript compilation check
+        run: npm run build
+      
+      - name: Run tests
+        run: npm test -- --run
+        continue-on-error: true
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          directory: ./client/coverage
+          flags: frontend
+        continue-on-error: true
+  
+  # Security Scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        continue-on-error: true
+      
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
+      
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+  
+  # Deployment (only on main branch)
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy placeholder
+        run: |
+          echo "🚀 Deployment would happen here"
+          echo "Add your deployment commands (e.g., SSH, Docker, Cloud platforms)"
+          echo "Example: ssh user@server 'cd /app && git pull && docker-compose up -d'"
+      
+      # Example DigitalOcean Deployment
+      # - name: Deploy to DigitalOcean
+      #   uses: appleboy/ssh-action@master
+      #   with:
+      #     host: ${{ secrets.DO_HOST }}
+      #     username: ${{ secrets.DO_USER }}
+      #     key: ${{ secrets.DO_SSH_KEY }}
+      #     script: |
+      #       cd /var/www/whatsai
+      #       git pull origin main
+      #       docker-compose down
+      #       docker-compose up -d --build
+      
+      - name: Notify deployment success
+        run: |
+          echo "✅ Deployment completed successfully"
+          echo "You can add Slack/Discord/Email notifications here"

@@ -156,7 +156,7 @@ export class CampaignService extends EventEmitter {
     });
 
     return {
-      campaigns: campaigns.map(c => this.formatCampaign(c)),
+      campaigns: campaigns.map((c: any) => this.formatCampaign(c)),
       total
     };
   }
@@ -420,7 +420,7 @@ export class CampaignService extends EventEmitter {
       completedCampaigns,
       totalMessagesSent,
       averageDeliveryRate: Math.round(averageDeliveryRate * 100) / 100,
-      recentCampaigns: recentCampaigns.map(c => this.formatCampaign(c))
+      recentCampaigns: recentCampaigns.map((c: any) => this.formatCampaign(c))
     };
   }
 
@@ -715,9 +715,9 @@ export class CampaignService extends EventEmitter {
     const failureRate = totalRecipients > 0 ? (failed / totalRecipients) * 100 : 0;
 
     // Calculate average delivery time
-    const deliveredMessages = messages.filter(m => m.sentAt && m.deliveredAt);
+    const deliveredMessages = messages.filter((m: any) => m.sentAt && m.deliveredAt);
     const avgDeliveryTime = deliveredMessages.length > 0
-      ? deliveredMessages.reduce((sum, m) => {
+      ? deliveredMessages.reduce((sum: any, m: any) => {
           const deliveryTime = m.deliveredAt!.getTime() - m.sentAt!.getTime();
           return sum + deliveryTime;
         }, 0) / deliveredMessages.length
@@ -729,7 +729,7 @@ export class CampaignService extends EventEmitter {
     const deliveredByHour = new Map<string, number>();
     const failedByHour = new Map<string, number>();
 
-    messages.forEach(m => {
+    messages.forEach((m: any) => {
       if (m.sentAt) {
         const hour = new Date(m.sentAt).setMinutes(0, 0, 0);
         const key = new Date(hour).toISOString();
@@ -783,7 +783,7 @@ export class CampaignService extends EventEmitter {
 
     // Aggregate failure reasons
     const failureReasons = new Map<string, number>();
-    messages.filter(m => m.error).forEach(m => {
+    messages.filter((m: any) => m.error).forEach((m: any) => {
       const error = m.error || 'Unknown error';
       failureReasons.set(error, (failureReasons.get(error) || 0) + 1);
     });
@@ -793,7 +793,7 @@ export class CampaignService extends EventEmitter {
       .sort((a, b) => b.count - a.count);
 
     // Format messages for response
-    const formattedMessages = messages.map(m => ({
+    const formattedMessages = messages.map((m: any) => ({
       id: m.id,
       recipient: m.recipient,
       status: m.status,
@@ -843,7 +843,7 @@ export class CampaignService extends EventEmitter {
     ];
 
     // Build CSV rows
-    const rows = report.messages.map(m => [
+    const rows = report.messages.map((m: any) => [
       m.recipient,
       m.status,
       m.retryCount.toString(),

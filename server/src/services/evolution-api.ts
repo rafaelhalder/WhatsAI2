@@ -215,11 +215,32 @@ export class EvolutionApiService {
       const response = await this.client.get(`/instance/connect/${instanceName}`);
       const { data } = response;
 
-      // Priorizar base64 (imagem completa) em vez de apenas o código
-      if (data && (data.base64 || data.qrcode || data.qr || data.code)) {
-        return data.base64 || data.qrcode || data.qr || data.code;
+      // Evolution API can return QR code in different formats:
+      // 1. data.base64 - direct base64 string
+      // 2. data.qrcode.base64 - nested in qrcode object
+      // 3. data.qrcode - as string
+      // 4. data.qr - alternative field
+      // 5. data.code - alternative field
+      
+      if (!data) {
+        return null;
       }
-
+      
+      // Check nested qrcode object first
+      if (data.qrcode && typeof data.qrcode === 'object' && data.qrcode.base64) {
+        console.log('✅ Found QR code in nested format (qrcode.base64)');
+        return data.qrcode.base64;
+      }
+      
+      // Check direct fields
+      const qrCode = data.base64 || data.qrcode || data.qr || data.code;
+      
+      if (qrCode) {
+        console.log('✅ Found QR code in direct format');
+        return qrCode;
+      }
+      
+      console.log('⚠️ QR code not found in response. Available fields:', Object.keys(data));
       return null;
     } catch (error: any) {
       // Reduzir log - só mostrar erro se não for 404 (QR não disponível ainda)

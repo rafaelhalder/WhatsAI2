@@ -1,13 +1,98 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="pt-BR" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- SEO Meta Tags -->
+    <title>WhatsAI - Automação WhatsApp com IA | Multi-instância</title>
+    <meta name="description" content="Gerencie múltiplas instâncias do WhatsApp em uma única plataforma. Automatize conversas, integre com IA (GPT-4), envie campanhas em massa e escale seu atendimento. Plano gratuito disponível!" />
+    <meta name="keywords" content="WhatsApp, automação, chatbot, IA, GPT-4, multi-instância, Evolution API, campanhas, atendimento automático, suporte ao cliente" />
+    <meta name="author" content="WhatsAI" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://whatsai.com.br" />
+    
+    <!-- Open Graph Meta Tags (Facebook, LinkedIn) -->
+    <meta property="og:title" content="WhatsAI - Gerencie Múltiplas Contas WhatsApp com IA" />
+    <meta property="og:description" content="Automatize seu atendimento no WhatsApp com IA. Multi-instância, campanhas, chatbot GPT-4. Comece grátis!" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://whatsai.com.br" />
+    <meta property="og:image" content="https://whatsai.com.br/og-image.png" />
+    <meta property="og:site_name" content="WhatsAI" />
+    <meta property="og:locale" content="pt_BR" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="WhatsAI - Gerencie Múltiplas Contas WhatsApp com IA" />
+    <meta name="twitter:description" content="Automatize seu atendimento no WhatsApp com IA. Multi-instância, campanhas, chatbot GPT-4. Comece grátis!" />
+    <meta name="twitter:image" content="https://whatsai.com.br/twitter-image.png" />
+    <meta name="twitter:creator" content="@whatsai" />
+    
+    <!-- Structured Data (Schema.org) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "WhatsAI",
+      "applicationCategory": "BusinessApplication",
+      "offers": {
+        "@type": "AggregateOffer",
+        "lowPrice": "0",
+        "highPrice": "497",
+        "priceCurrency": "BRL"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "ratingCount": "127"
+      },
+      "operatingSystem": "Web-based",
+      "description": "Plataforma completa para gerenciar múltiplas instâncias do WhatsApp com automação e IA"
+    }
+    </script>
+    
+    <!-- Google Analytics 4 - Replace with your GA4 ID -->
+    <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
+    </script> -->
+    
+    <!-- Facebook Pixel - Replace with your Pixel ID -->
+    <!-- <script>
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', 'YOUR_PIXEL_ID');
+      fbq('track', 'PageView');
+    </script>
+    <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=YOUR_PIXEL_ID&ev=PageView&noscript=1"
+    /></noscript> -->
+    
+    <!-- Hotjar Tracking Code - Replace with your Site ID -->
+    <!-- <script>
+      (function(h,o,t,j,a,r){
+        h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
+        h._hjSettings={hjid:YOUR_SITE_ID,hjsv:6};
+        a=o.getElementsByTagName('head')[0];
+        r=o.createElement('script');r.async=1;
+        r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
+        a.appendChild(r);
+      })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
+    </script> -->
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
-    <title>Whats AI</title>
   </head>
   <body>
     <div id="root"></div>

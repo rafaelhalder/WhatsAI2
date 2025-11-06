@@ -13,6 +13,7 @@ import billingRoutes from './billing';
 import stripeWebhooksRoutes from './stripe-webhooks';
 import { mediaRoutes } from './media';
 import autoResponsesRoutes from './auto-responses';
+import onboardingRoutes from './onboarding';
 import { authMiddleware } from '@/api/middlewares/auth-middleware';
 import { debounceService } from '../../services/debounce-service';
 import { cacheService } from '../../services/cache-service';
@@ -65,6 +66,7 @@ router.use('/plans', authMiddleware, plansRoutes);
 router.use('/billing', billingRoutes); // Already has authMiddleware inside
 router.use('/settings', authMiddleware, settingsRoutes);
 router.use('/account', authMiddleware, accountRoutes);
+router.use('/onboarding', onboardingRoutes); // Already has authMiddleware inside
 router.use('/media', mediaRoutes);
 router.use('/webhooks', webhookRoutes);
 

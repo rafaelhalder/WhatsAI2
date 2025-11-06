@@ -146,7 +146,12 @@ export const PLANS: Record<PlanType, PlanConfig> = {
 
 // Helper functions
 export const getPlanConfig = (planType: PlanType): PlanConfig => {
-  return PLANS[planType];
+  const config = PLANS[planType];
+  if (!config) {
+    console.error(`Invalid plan type: ${planType}. Available plans:`, Object.keys(PLANS));
+    throw new Error(`Invalid plan type: ${planType}`);
+  }
+  return config;
 };
 
 export const isUnlimited = (value: number): boolean => {

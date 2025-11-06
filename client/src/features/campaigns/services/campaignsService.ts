@@ -155,6 +155,44 @@ class CampaignsService {
   }
 
   /**
+   * Get overall campaign statistics for user
+   */
+  async getOverallStats(token: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/stats`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch overall campaign stats');
+    }
+
+    const data = await response.json();
+    return data.data;
+  }
+
+  /**
+   * Get campaign progress
+   */
+  async getCampaignProgress(token: string, id: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/${id}/progress`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch campaign progress');
+    }
+
+    const data = await response.json();
+    return data.data;
+  }
+
+  /**
    * Get detailed campaign report
    */
   async getCampaignReport(token: string, id: string): Promise<any> {

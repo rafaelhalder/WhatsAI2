@@ -86,87 +86,115 @@ export class PlansService {
    * Get user's usage statistics
    */
   static async getUserUsage(userId: string): Promise<UsageResponse> {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        plan: true,
-        planLimits: true,
-        usageStats: true,
-        _count: {
-          select: {
-            instances: true,
-            messageTemplates: true,
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          plan: true,
+          planLimits: true,
+          usageStats: true,
+          _count: {
+            select: {
+              instances: true,
+              messageTemplates: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!user) {
-      throw new Error('Usuário não encontrado');
+      if (!user) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      const planType = user.plan as PlanType;
+      const planConfig = getPlanConfig(planType);
+      
+      // Parse JSON fields safely
+      let limits: PlanLimits;
+      let usageStats: UsageStats;
+      
+      try {
+        limits = typeof user.planLimits === 'string' 
+          ? JSON.parse(user.planLimits) 
+          : user.planLimits as unknown as PlanLimits;
+      } catch (error) {
+        console.error('Error parsing planLimits, using defaults:', error);
+        limits = getDefaultLimits(planType);
+      }
+      
+      try {
+        usageStats = typeof user.usageStats === 'string'
+          ? JSON.parse(user.usageStats)
+          : user.usageStats as unknown as UsageStats;
+      } catch (error) {
+        console.error('Error parsing usageStats, using defaults:', error);
+        usageStats = {
+          messages_today: 0,
+          last_reset: new Date().toISOString(),
+        };
+      }
+
+      // Check if usage needs to be reset
+      await this.checkAndResetDailyUsage(userId, usageStats);
+
+      // Count campaigns this month
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const campaignsThisMonth = await prisma.campaign.count({
+        where: {
+          userId,
+          createdAt: { gte: startOfMonth },
+        },
+      });
+
+      // Calculate usage percentages
+      const instancesUsage = {
+        current: user._count.instances,
+        limit: limits.instances,
+        percentage: getLimitPercentage(user._count.instances, limits.instances),
+      };
+
+      const messagesTodayUsage = {
+        current: usageStats.messages_today || 0,
+        limit: limits.messages_per_day,
+        percentage: getLimitPercentage(usageStats.messages_today || 0, limits.messages_per_day),
+      };
+
+      const templatesUsage = {
+        current: user._count.messageTemplates,
+        limit: limits.templates,
+        percentage: getLimitPercentage(user._count.messageTemplates, limits.templates),
+      };
+
+      const campaignsUsage = limits.broadcasts_per_month
+        ? {
+            current: campaignsThisMonth,
+            limit: limits.broadcasts_per_month,
+            percentage: getLimitPercentage(campaignsThisMonth, limits.broadcasts_per_month),
+          }
+        : undefined;
+
+      return {
+        plan: planType,
+        planDisplayName: planConfig.displayName,
+        limits,
+        usage: {
+          instances: instancesUsage,
+          messages_today: messagesTodayUsage,
+          templates: templatesUsage,
+          ...(campaignsUsage && { campaigns_this_month: campaignsUsage }),
+        },
+        canCreateInstance: checkLimit(instancesUsage.current, instancesUsage.limit),
+        canSendMessage: checkLimit(messagesTodayUsage.current, messagesTodayUsage.limit),
+        canCreateTemplate: checkLimit(templatesUsage.current, templatesUsage.limit),
+        canCreateCampaign: limits.broadcasts && (campaignsUsage ? checkLimit(campaignsUsage.current, campaignsUsage.limit) : true),
+      };
+    } catch (error) {
+      console.error('Error in getUserUsage:', error);
+      throw error;
     }
-
-    const planType = user.plan as PlanType;
-    const planConfig = getPlanConfig(planType);
-    const limits = user.planLimits as unknown as PlanLimits;
-    const usageStats = user.usageStats as unknown as UsageStats;
-
-    // Check if usage needs to be reset
-    await this.checkAndResetDailyUsage(userId, usageStats);
-
-    // Count campaigns this month
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const campaignsThisMonth = await prisma.campaign.count({
-      where: {
-        userId,
-        createdAt: { gte: startOfMonth },
-      },
-    });
-
-    // Calculate usage percentages
-    const instancesUsage = {
-      current: user._count.instances,
-      limit: limits.instances,
-      percentage: getLimitPercentage(user._count.instances, limits.instances),
-    };
-
-    const messagesTodayUsage = {
-      current: usageStats.messages_today || 0,
-      limit: limits.messages_per_day,
-      percentage: getLimitPercentage(usageStats.messages_today || 0, limits.messages_per_day),
-    };
-
-    const templatesUsage = {
-      current: user._count.messageTemplates,
-      limit: limits.templates,
-      percentage: getLimitPercentage(user._count.messageTemplates, limits.templates),
-    };
-
-    const campaignsUsage = limits.broadcasts_per_month
-      ? {
-          current: campaignsThisMonth,
-          limit: limits.broadcasts_per_month,
-          percentage: getLimitPercentage(campaignsThisMonth, limits.broadcasts_per_month),
-        }
-      : undefined;
-
-    return {
-      plan: planType,
-      planDisplayName: planConfig.displayName,
-      limits,
-      usage: {
-        instances: instancesUsage,
-        messages_today: messagesTodayUsage,
-        templates: templatesUsage,
-        ...(campaignsUsage && { campaigns_this_month: campaignsUsage }),
-      },
-      canCreateInstance: checkLimit(instancesUsage.current, instancesUsage.limit),
-      canSendMessage: checkLimit(messagesTodayUsage.current, messagesTodayUsage.limit),
-      canCreateTemplate: checkLimit(templatesUsage.current, templatesUsage.limit),
-      canCreateCampaign: limits.broadcasts && (campaignsUsage ? checkLimit(campaignsUsage.current, campaignsUsage.limit) : true),
-    };
   }
 
   /**
@@ -260,20 +288,25 @@ export class PlansService {
    * Reset daily usage if needed
    */
   static async checkAndResetDailyUsage(userId: string, usageStats: UsageStats): Promise<void> {
-    const shouldReset = await this.shouldResetUsage(usageStats);
+    try {
+      const shouldReset = await this.shouldResetUsage(usageStats);
 
-    if (shouldReset) {
-      const newUsageStats: UsageStats = {
-        messages_today: 0,
-        last_reset: new Date().toISOString(),
-        campaigns_this_month: usageStats.campaigns_this_month,
-        storage_used_gb: usageStats.storage_used_gb,
-      };
+      if (shouldReset) {
+        const newUsageStats: UsageStats = {
+          messages_today: 0,
+          last_reset: new Date().toISOString(),
+          campaigns_this_month: usageStats.campaigns_this_month || 0,
+          storage_used_gb: usageStats.storage_used_gb || 0,
+        };
 
-      await prisma.user.update({
-        where: { id: userId },
-        data: { usageStats: newUsageStats as any },
-      });
+        await prisma.user.update({
+          where: { id: userId },
+          data: { usageStats: newUsageStats as any },
+        });
+      }
+    } catch (error) {
+      console.error('Error in checkAndResetDailyUsage:', error);
+      // Don't throw, just log - usage reset is not critical
     }
   }
 
@@ -281,15 +314,29 @@ export class PlansService {
    * Check if usage should be reset (different day)
    */
   static async shouldResetUsage(usageStats: UsageStats): Promise<boolean> {
-    const lastReset = new Date(usageStats.last_reset);
-    const now = new Date();
+    try {
+      if (!usageStats.last_reset) {
+        return true; // No reset date, should reset
+      }
 
-    // Reset if it's a different day
-    return (
-      lastReset.getFullYear() !== now.getFullYear() ||
-      lastReset.getMonth() !== now.getMonth() ||
-      lastReset.getDate() !== now.getDate()
-    );
+      const lastReset = new Date(usageStats.last_reset);
+      const now = new Date();
+
+      // Check if date is valid
+      if (isNaN(lastReset.getTime())) {
+        return true; // Invalid date, should reset
+      }
+
+      // Reset if it's a different day
+      return (
+        lastReset.getFullYear() !== now.getFullYear() ||
+        lastReset.getMonth() !== now.getMonth() ||
+        lastReset.getDate() !== now.getDate()
+      );
+    } catch (error) {
+      console.error('Error in shouldResetUsage:', error);
+      return true; // On error, reset to be safe
+    }
   }
 
   /**

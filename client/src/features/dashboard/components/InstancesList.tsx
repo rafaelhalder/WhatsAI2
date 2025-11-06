@@ -76,7 +76,7 @@ export const InstancesList: React.FC<InstancesListProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour="instances-list">
       {/* Header with stats */}
       <div className="flex items-center justify-between">
         <button

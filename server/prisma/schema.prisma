@@ -27,6 +27,10 @@ model User {
   // Stripe
   stripeCustomerId String? @unique
 
+  // Onboarding
+  onboardingCompleted Boolean @default(false)
+  onboardingStep      Int     @default(0) // 0=not started, 1=welcome, 2=instance, 3=qr, 4=message, 5=complete
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -95,6 +99,7 @@ model Message {
   fileName    String?
   caption     String?
   senderName  String? // Nome de quem enviou (importante para grupos)
+  senderNumber String? // Número de quem enviou (participant do grupo)
 
   // WhatsApp message data
   messageId String   @unique

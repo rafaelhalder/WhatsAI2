@@ -206,13 +206,6 @@ export default function Subscription() {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(amount / 100);
-  };
-
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       active: { icon: CheckCircle, color: 'text-green-600 bg-green-100 dark:bg-green-900 dark:text-green-300', label: 'Ativo' },

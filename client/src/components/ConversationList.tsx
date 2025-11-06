@@ -266,6 +266,29 @@ export const ConversationList: React.FC = () => {
     }
   };
 
+  // Helper para texto descritivo de tipo de mensagem (quando content está vazio)
+  const getMessageTypeDescription = (messageType: string) => {
+    switch (messageType.toUpperCase()) {
+      case 'IMAGE':
+        return 'Imagem';
+      case 'AUDIO':
+      case 'PTT':
+        return 'Áudio';
+      case 'VIDEO':
+        return 'Vídeo';
+      case 'DOCUMENT':
+        return 'Documento';
+      case 'STICKER':
+        return 'Figurinha';
+      case 'LOCATION':
+        return 'Localização';
+      case 'CONTACT':
+        return 'Contato';
+      default:
+        return null;
+    }
+  };
+
   // Helper para ícone de status de leitura
   const getStatusIcon = (status?: string) => {
     if (!status || status === 'PENDING') return <Check className="h-3 w-3 inline" />;
@@ -443,7 +466,7 @@ export const ConversationList: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
+          <div className="divide-y divide-base-300">
             {filteredConversations.map((conversation) => (
               <Link
                 key={conversation.id}
@@ -475,16 +498,24 @@ export const ConversationList: React.FC = () => {
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className={`text-sm font-medium truncate text-base-content`}>
-                          {getDisplayName({
-                            nickname: (conversation as any).nickname,
-                            contactName: conversation.contactName,
-                            remoteJid: conversation.remoteJid
-                          })}
-                          {conversation.isGroup && (
-                            <span className="ml-1 text-xs text-base-content/60">(Grupo)</span>
+                        <div className="flex-1 min-w-0">
+                          <h3 className={`text-sm font-medium truncate text-base-content`}>
+                            {getDisplayName({
+                              nickname: (conversation as any).nickname,
+                              contactName: conversation.contactName,
+                              remoteJid: conversation.remoteJid
+                            })}
+                            {conversation.isGroup && (
+                              <span className="ml-1 text-xs text-base-content/60">(Grupo)</span>
+                            )}
+                          </h3>
+                          {/* Mostrar número abaixo do nome se houver um nome salvo */}
+                          {!conversation.isGroup && (conversation.contactName || (conversation as any).nickname) && (
+                            <p className="text-xs text-base-content/50 truncate">
+                              {conversation.remoteJid.replace('@s.whatsapp.net', '')}
+                            </p>
                           )}
-                        </h3>
+                        </div>
                         <div className="flex items-center space-x-2">
                           <span className={`text-xs text-base-content/60`}>
                             {formatTime(conversation.lastMessageAt)}
@@ -535,11 +566,11 @@ export const ConversationList: React.FC = () => {
                                     className="fixed inset-0 z-10"
                                     onClick={() => setOpenMenuId(null)}
                                   />
-                                  <div className={`absolute right-0 mt-1 w-48 rounded-md shadow-lg z-20 border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                                  <div className="absolute right-0 mt-1 w-48 rounded-md shadow-lg z-20 border bg-base-100 border-base-300">
                                     <div className="py-1">
                                       <button
                                         onClick={(e) => handleArchiveConversation(e, conversation.id)}
-                                        className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 ${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}
+                                        className="w-full text-left px-4 py-2 text-sm flex items-center space-x-2 hover:bg-base-200 text-base-content"
                                       >
                                         <Archive className="h-4 w-4" />
                                         <span>Arquivar conversa</span>
@@ -551,13 +582,13 @@ export const ConversationList: React.FC = () => {
                                           contactName: conversation.contactName,
                                           remoteJid: conversation.remoteJid
                                         }))}
-                                        className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 ${isDark ? 'hover:bg-gray-700 text-yellow-400' : 'hover:bg-gray-100 text-yellow-600'}`}
+                                        className="w-full text-left px-4 py-2 text-sm flex items-center space-x-2 hover:bg-base-200 text-warning"
                                       >
                                         <Eraser className="h-4 w-4" />
                                         <span>Limpar mensagens</span>
                                       </button>
                                       
-                                      <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} my-1`} />
+                                      <div className="border-t border-base-300 my-1" />
                                       
                                       <button
                                         onClick={(e) => handleDeleteConversation(e, conversation.id, getDisplayName({
@@ -565,7 +596,7 @@ export const ConversationList: React.FC = () => {
                                           contactName: conversation.contactName,
                                           remoteJid: conversation.remoteJid
                                         }))}
-                                        className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 ${isDark ? 'hover:bg-red-900/20 text-red-400' : 'hover:bg-red-50 text-red-600'}`}
+                                        className="w-full text-left px-4 py-2 text-sm flex items-center space-x-2 hover:bg-error/10 text-error"
                                       >
                                         <Trash2 className="h-4 w-4" />
                                         <span>Excluir conversa</span>
@@ -582,9 +613,13 @@ export const ConversationList: React.FC = () => {
                       <div className="mt-1">
                         {(() => {
                           // Priorizar lastMessagePreview (mais completo)
-                          if (conversation.lastMessagePreview?.content) {
+                          if (conversation.lastMessagePreview) {
                             const preview = conversation.lastMessagePreview;
                             const messageTypeIcon = getMessageTypeIcon(preview.messageType);
+                            const messageTypeDesc = getMessageTypeDescription(preview.messageType);
+                            
+                            // Determinar o conteúdo a exibir: conteúdo da mensagem ou descrição do tipo
+                            const displayContent = preview.content?.trim() || messageTypeDesc || 'Mensagem';
                             
                             return (
                               <p className={`text-sm truncate text-base-content/70 flex items-center`}>
@@ -606,8 +641,8 @@ export const ConversationList: React.FC = () => {
                                 {/* Ícone de tipo de mensagem */}
                                 {messageTypeIcon && <span className="mr-1">{messageTypeIcon}</span>}
                                 
-                                {/* Conteúdo da mensagem */}
-                                <span className="truncate">{truncateMessage(preview.content)}</span>
+                                {/* Conteúdo da mensagem ou descrição do tipo */}
+                                <span className="truncate">{truncateMessage(displayContent)}</span>
                               </p>
                             );
                           }

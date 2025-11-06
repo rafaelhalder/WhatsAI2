@@ -191,15 +191,27 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
         console.error(`❌ [WEBHOOK_LOG] Erro ao salvar log:`, err);
       });
 
-      // 🔍 Check if instance exists in database
+      // ✅ FIX #3: Melhorar validação e logging de instância não encontrada
+      // Isso ajuda a identificar problemas de configuração
       const instance = await prisma.whatsAppInstance.findUnique({
         where: { evolutionInstanceName: instanceId }
       });
 
       if (!instance) {
+        // Log detalhado para debug
+        console.warn(`⚠️ [WEBHOOK] Instância não encontrada no banco: ${instanceId}`);
+        console.warn(`   Isso pode indicar:`);
+        console.warn(`   1. Webhook configurado antes de criar instância no sistema`);
+        console.warn(`   2. Instância deletada mas webhook ainda ativo`);
+        console.warn(`   3. Nome da instância diferente entre Evolution API e sistema`);
+        
+        // Retornar 200 para não causar retry infinito na Evolution API
+        // mas logar o problema para investigação
         res.status(200).json({
           success: true,
-          message: 'Webhook ignored - instance not found in database'
+          message: 'Webhook ignored - instance not found in database',
+          instanceId: instanceId,
+          warning: 'Instance should be created in the system before webhook is active'
         });
         return;
       }

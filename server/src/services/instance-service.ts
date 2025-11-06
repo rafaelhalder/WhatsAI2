@@ -355,7 +355,25 @@ export class WhatsAppInstanceService {
       // Evolution API can return QR Code in two formats:
       // 1. result.qrcode.base64 (nested)
       // 2. result.base64 (direct)
-      const qrCodeBase64 = result.qrcode?.base64 || result.base64;
+      let qrCodeBase64 = result.qrcode?.base64 || result.base64;
+
+      // If QR code not immediately available, poll for it
+      if (!qrCodeBase64) {
+        console.log('⏳ QR Code not in connect response, polling...');
+        
+        // Try to get QR code up to 5 times with 1 second delays
+        for (let attempt = 1; attempt <= 5; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          console.log(`🔄 Polling attempt ${attempt}/5 for QR code...`);
+          qrCodeBase64 = await this.evolutionApi.getQRCode(instance.evolutionInstanceName);
+          
+          if (qrCodeBase64) {
+            console.log('✅ QR Code obtained after polling');
+            break;
+          }
+        }
+      }
 
       // Save QR Code if present
       if (qrCodeBase64) {
@@ -374,12 +392,17 @@ export class WhatsAppInstanceService {
           instanceId,
           qrCode: qrCodeBase64
         });
+        
+        // Return updated instance with QR code
+        return { ...instance, qrCode: qrCodeBase64 };
       } else {
-        console.warn('⚠️ [DEBUG] QR Code NOT found in response!');
+        console.warn('⚠️ [DEBUG] QR Code NOT available even after polling!');
         console.warn('⚠️ [DEBUG] Result structure:', Object.keys(result));
+        
+        // Return instance even without QR code
+        // Client will poll for it
+        return instance;
       }
-
-      return result;
     } catch (error) {
       console.error('Error connecting instance:', error);
       

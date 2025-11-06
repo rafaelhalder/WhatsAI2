@@ -12,7 +12,7 @@ export class DashboardService {
       select: { id: true }
     });
 
-    const instanceIds = userInstances.map(inst => inst.id);
+    const instanceIds = userInstances.map((inst: any) => inst.id);
 
     // Parallel queries for better performance
     const [
@@ -107,7 +107,7 @@ export class DashboardService {
       select: { id: true }
     });
 
-    const instanceIds = userInstances.map(inst => inst.id);
+    const instanceIds = userInstances.map((inst: any) => inst.id);
 
     if (instanceIds.length === 0) {
       return this.fillMissingDates([], days);
@@ -135,7 +135,7 @@ export class DashboardService {
     // Group by date
     const groupedData = new Map<string, { total: number; delivered: number; failed: number }>();
 
-    messages.forEach(message => {
+    messages.forEach((message: any) => {
       const dateStr = message.createdAt.toISOString().split('T')[0];
       if (!dateStr) return;
 
@@ -175,7 +175,7 @@ export class DashboardService {
     // Map and group by the mapped status
     const statusGroups = new Map<'online' | 'offline' | 'connecting', number>();
     
-    instances.forEach(group => {
+    instances.forEach((group: any) => {
       const mappedStatus = this.mapInstanceStatus(group.status);
       const currentCount = statusGroups.get(mappedStatus) || 0;
       statusGroups.set(mappedStatus, currentCount + group._count.status);
@@ -280,7 +280,7 @@ export class DashboardService {
     // Group by date
     const groupedData = new Map<string, { activeUsers: number; newUsers: number }>();
 
-    messagesWithUsers.forEach(msg => {
+    messagesWithUsers.forEach((msg: any) => {
       const dateStr = msg.createdAt.toISOString().split('T')[0];
       if (!dateStr) return;
       
@@ -327,7 +327,7 @@ export class DashboardService {
       take: limit
     });
 
-    return recentMessages.map(msg => ({
+    return recentMessages.map((msg: any) => ({
       id: msg.id,
       type: 'message' as const,
       timestamp: msg.createdAt,
@@ -360,7 +360,7 @@ export class DashboardService {
     // Group by hour
     const hourCounts = new Map<number, number>();
     
-    messages.forEach(msg => {
+    messages.forEach((msg: any) => {
       const hour = msg.createdAt.getHours();
       hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
     });
@@ -381,7 +381,7 @@ export class DashboardService {
       select: { id: true }
     });
 
-    const instanceIds = userInstances.map(inst => inst.id);
+    const instanceIds = userInstances.map((inst: any) => inst.id);
 
     const conversations = await prisma.conversation.findMany({
       where: {
@@ -404,7 +404,7 @@ export class DashboardService {
 
     const responseTimes: number[] = [];
 
-    conversations.forEach(conv => {
+    conversations.forEach((conv: any) => {
       for (let i = 1; i < conv.messages.length; i++) {
         const prevMsg = conv.messages[i - 1];
         const currMsg = conv.messages[i];

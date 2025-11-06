@@ -6,6 +6,7 @@ import { SocketService } from './socket-service';
 import { MediaMessageService } from './messages';
 import { IncomingMediaService } from './incoming-media-service';
 import { mediaLogger } from '../utils/media-logger';
+import { LRUCache } from '../utils/lru-cache';
 import {
   compareJids,
   normalizeJid,
@@ -74,9 +75,11 @@ export class ConversationService {
   private evolutionApiService: EvolutionApiService;
   private socketService: SocketService;
   private incomingMediaService: IncomingMediaService;
-  private lidToRealNumberCache: Map<string, string> = new Map(); // @lid → real number
-  private keyIdToLidCache: Map<string, string> = new Map(); // keyId → @lid  
-  private keyIdToRealCache: Map<string, string> = new Map(); // keyId → real number
+  
+  // ✅ FIX #5: Usar LRU cache com limite de tamanho para prevenir memory leak
+  private lidToRealNumberCache: LRUCache<string, string>;
+  private keyIdToLidCache: LRUCache<string, string>;
+  private keyIdToRealCache: LRUCache<string, string>;
 
   constructor() {
     this.conversationRepository = new ConversationRepository(prisma);
@@ -84,6 +87,12 @@ export class ConversationService {
     this.evolutionApiService = new EvolutionApiService();
     this.socketService = SocketService.getInstance();
     this.incomingMediaService = new IncomingMediaService();
+    
+    // Inicializar caches com limite de 10000 entradas cada
+    // Isso previne memory leak em produção
+    this.lidToRealNumberCache = new LRUCache<string, string>(10000);
+    this.keyIdToLidCache = new LRUCache<string, string>(10000);
+    this.keyIdToRealCache = new LRUCache<string, string>(10000);
   }
 
   /**
@@ -1026,6 +1035,73 @@ export class ConversationService {
     return phone;
   }
 
+  /**
+   * ✅ FIX #4: Processar mídia em background (fora da transação)
+   * Evita bloquear o banco de dados com operações I/O pesadas
+   */
+  private async processMediaInBackground(
+    messageId: string,
+    mediaUrl: string,
+    messageData: any,
+    instanceName: string,
+    instanceId: string
+  ): Promise<void> {
+    try {
+      console.log(`🖼️ [MEDIA_BACKGROUND] Iniciando processamento assíncrono de mídia para mensagem ${messageId}`);
+      
+      const mediaType = this.getMessageType(messageData).toLowerCase() as 'image' | 'video' | 'audio' | 'sticker' | 'document';
+      
+      // Obter mimeType com fallback
+      let mimeType = this.getMimeType(messageData);
+      if (!mimeType) {
+        if (mediaType === 'audio') mimeType = 'audio/ogg';
+        else if (mediaType === 'image') mimeType = 'image/jpeg';
+        else if (mediaType === 'video') mimeType = 'video/mp4';
+        else if (mediaType === 'sticker') mimeType = 'image/webp';
+        else if (mediaType === 'document') mimeType = 'application/octet-stream';
+        else mimeType = 'application/octet-stream';
+        
+        console.log(`🔧 [MEDIA_BACKGROUND] mimeType undefined, usando fallback: ${mimeType}`);
+      }
+
+      const fileName = messageData.message?.documentMessage?.fileName;
+      const caption = messageData.message?.imageMessage?.caption || messageData.message?.videoMessage?.caption;
+
+      // Processar mídia (download + upload para CDN)
+      const processedUrl = await this.incomingMediaService.processIncomingMedia({
+        messageId: messageData.key.id,
+        mediaUrl,
+        mediaType,
+        fileName,
+        caption,
+        mimeType,
+        instanceName,
+        messageData
+      });
+
+      if (processedUrl) {
+        // Atualizar mensagem com URL processada
+        await prisma.message.update({
+          where: { id: messageId },
+          data: { mediaUrl: processedUrl }
+        });
+
+        console.log(`✅ [MEDIA_BACKGROUND] Mídia processada com sucesso: ${processedUrl.substring(0, 80)}...`);
+
+        // Emitir evento de atualização para o frontend
+        this.socketService.emitToInstance(instanceId, 'message:media-updated', {
+          messageId,
+          mediaUrl: processedUrl
+        });
+      } else {
+        console.warn(`⚠️ [MEDIA_BACKGROUND] Processamento retornou URL null`);
+      }
+    } catch (error) {
+      console.error(`❌ [MEDIA_BACKGROUND] Erro ao processar mídia:`, error);
+      // Não re-throw - falha de mídia não deve quebrar o fluxo principal
+    }
+  }
+
   private getMessageType(messageData: any): string {
     if (messageData.message?.conversation) return 'TEXT';
     if (messageData.message?.extendedTextMessage) return 'TEXT';
@@ -1319,6 +1395,16 @@ export class ConversationService {
    */
   async handleIncomingMessageAtomic(instanceId: string, messageData: any): Promise<void> {
     try {
+      // ✅ FIX #7: Validar messageId antes de processar
+      if (!messageData.key?.id) {
+        console.error('[VALIDATION] Invalid messageId in webhook:', {
+          hasKey: !!messageData.key,
+          keyId: messageData.key?.id,
+          event: 'messages.upsert'
+        });
+        throw new Error('Message ID is required - invalid webhook payload');
+      }
+
       console.log(`📝 [ATOMIC_DATA] MessageType: ${messageData.message ? Object.keys(messageData.message)[0] : 'N/A'}`);
       console.log(`🖼️ [ATOMIC_MEDIA] Has media: ${!!(messageData.message?.imageMessage || messageData.message?.videoMessage || messageData.message?.audioMessage)}`);
 
@@ -1360,9 +1446,6 @@ export class ConversationService {
 
       const formattedRemoteJid = this.formatRemoteJid(normalizedRemoteJid);
 
-      // Variable to track processed media URL across transaction boundary
-      let processedMediaUrl: string | null | undefined = null;
-
       // � Se for GRUPO, buscar informações do grupo na Evolution API ANTES da transação
       const isGroupConversation = messageData.key.remoteJid.includes('@g.us');
       let groupInfo: { subject?: string; pictureUrl?: string } | null = null;
@@ -1384,64 +1467,69 @@ export class ConversationService {
       }
 
       // �🚨 ATOMIC TRANSACTION: All critical database operations in one transaction
-      const transactionResult = await prisma.$transaction(async (tx) => {
+      const transactionResult = await prisma.$transaction(async (tx: any) => {
         // Prepare conversation data
         const conversationData: any = {
           isGroup: isGroupConversation
         };
 
-        // ⚠️ IMPORTANTE: Usar nome do GRUPO se foi buscado da API
-        // Caso contrário, para contatos individuais, usar pushName
-        if (isGroupConversation && groupInfo?.subject) {
-          conversationData.contactName = groupInfo.subject;
-          conversationData.contactPicture = groupInfo.pictureUrl || null;
-        } else if (!messageData.key.fromMe && messageData.pushName && !isGroupConversation) {
-          conversationData.contactName = messageData.pushName;
+        // ✅ FIX #2: Corrigir lógica de nome de grupo
+        // Separar tratamento de grupos e contatos individuais
+        if (isGroupConversation) {
+          // Para grupos: usar nome da API se disponível
+          if (groupInfo?.subject) {
+            conversationData.contactName = groupInfo.subject;
+          }
+          if (groupInfo?.pictureUrl) {
+            conversationData.contactPicture = groupInfo.pictureUrl;
+          }
+        } else {
+          // Para contatos individuais: usar pushName se mensagem foi recebida
+          if (!messageData.key.fromMe && messageData.pushName) {
+            conversationData.contactName = messageData.pushName;
+          }
         }
 
-        // 1. Create or update conversation within transaction
-        let conversation = await tx.conversation.findFirst({
+        // ✅ FIX #1: Usar upsert para evitar race condition
+        // Isso garante atomicidade e previne violação de constraint único
+        const conversation = await tx.conversation.upsert({
           where: {
+            instanceId_remoteJid: {
+              instanceId: instance.id,
+              remoteJid: formattedRemoteJid
+            }
+          },
+          update: isGroupConversation && conversationData.contactName 
+            ? { 
+                // Para grupos: não sobrescrever nome existente
+                contactPicture: conversationData.contactPicture,
+                isGroup: conversationData.isGroup
+              }
+            : conversationData,
+          create: {
             instanceId: instance.id,
-            remoteJid: formattedRemoteJid
+            remoteJid: formattedRemoteJid,
+            ...conversationData
           }
         });
-
-        if (!conversation) {
-          conversation = await tx.conversation.create({
-            data: {
-              instanceId: instance.id,
-              remoteJid: formattedRemoteJid,
-              ...conversationData
-            }
-          });
-          console.log(`✅ [CONVERSATION_CREATED] ${isGroupConversation ? 'Grupo' : 'Contato'}: ${conversation.remoteJid}`);
-        } else {
-          // Se for grupo E já tiver nome, NÃO sobrescrever
-          const updateData = { ...conversationData };
-          if (isGroupConversation && conversation.contactName) {
-            delete updateData.contactName;
-          }
-          
-          // Só atualizar se houver dados para atualizar
-          if (Object.keys(updateData).length > 0) {
-            conversation = await tx.conversation.update({
-              where: { id: conversation.id },
-              data: updateData
-            });
-          }
-        }
 
         // Prepare message data
         // Para grupos: senderName é o pushName de quem mandou (participant)
         // Para individuais: senderName não é necessário (já está no contactName da conversa)
         let senderName: string | undefined = undefined;
+        let senderNumber: string | undefined = undefined;
         if (!messageData.key.fromMe) {
-          if (isGroupConversation && messageData.pushName) {
-            // Em grupos, usar pushName do participante que mandou a mensagem
-            senderName = messageData.pushName;
+          if (isGroupConversation) {
+            if (messageData.pushName) {
+              // Em grupos, usar pushName do participante que mandou a mensagem
+              senderName = messageData.pushName;
+            }
+            if (messageData.key.participant) {
+              // Em grupos, armazenar o número do participante
+              senderNumber = messageData.key.participant;
+            }
           }
-          // Para conversas individuais, não precisamos de senderName
+          // Para conversas individuais, não precisamos de senderName/senderNumber
         }
 
         const messageCreateData = {
@@ -1461,6 +1549,7 @@ export class ConversationService {
           fileName: messageData.message?.documentMessage?.fileName,
           caption: messageData.message?.imageMessage?.caption || messageData.message?.videoMessage?.caption,
           senderName: senderName || null,
+          senderNumber: senderNumber || null,
           conversationId: conversation.id
         };
 
@@ -1489,66 +1578,9 @@ export class ConversationService {
           }
         }
 
-        // 2.5. Process incoming media (download and store locally) - OUTSIDE transaction for performance
-        processedMediaUrl = messageCreateData.mediaUrl;
-        // Só processar se for URL do WhatsApp (não CDN)
-        const isWhatsAppMediaUrl = messageCreateData.mediaUrl?.includes('mmg.whatsapp.net');
-        
-        if (messageCreateData.mediaUrl && isWhatsAppMediaUrl) {
-
-          try {
-            const mediaType = this.getMessageType(messageData).toLowerCase() as 'image' | 'video' | 'audio' | 'sticker' | 'document';
-            
-            // 🔧 USAR getMimeType() que tem o fallback para audio/ogg
-            let mimeType = this.getMimeType(messageData);
-            
-            // 🔧 Garantir mimeType com base no mediaType se ainda estiver undefined
-            if (!mimeType) {
-              if (mediaType === 'audio') mimeType = 'audio/ogg';
-              else if (mediaType === 'image') mimeType = 'image/jpeg';
-              else if (mediaType === 'video') mimeType = 'video/mp4';
-              else if (mediaType === 'sticker') mimeType = 'image/webp';
-              else if (mediaType === 'document') mimeType = 'application/octet-stream';
-              else mimeType = 'application/octet-stream';
-              
-              console.log(`🔧 [MEDIA_PROCESSING] mimeType undefined, usando fallback baseado em mediaType: ${mimeType}`);
-            }
-
-            console.log(`🔍 [MEDIA_PROCESSING] mediaType: ${mediaType}, mimeType: ${mimeType}`);
-
-            const downloadedUrl = await this.incomingMediaService.processIncomingMedia({
-              messageId: messageData.key.id,
-              mediaUrl: messageCreateData.mediaUrl,
-              mediaType,
-              fileName: messageCreateData.fileName,
-              caption: messageCreateData.caption,
-              mimeType,
-              instanceName: instanceId, // Evolution instance name for decryption
-              messageData: messageData // Complete message data with encryption keys
-            });
-
-            if (downloadedUrl) {
-              processedMediaUrl = downloadedUrl;
-
-              console.log(`✅ [MEDIA_PROCESSED] ${mediaType.toUpperCase()} URL atualizada: ${downloadedUrl.substring(0, 80)}...`);
-
-              // Update message with processed media URL
-              await tx.message.update({
-                where: { id: message.id },
-                data: { mediaUrl: processedMediaUrl }
-              });
-            } else {
-              console.warn(`⚠️ [MEDIA_PROCESSED] ${mediaType.toUpperCase()} retornou URL null - usando URL original`);
-            }
-          } catch (mediaError) {
-            console.error(`⚠️ [ATOMIC_MEDIA_ERROR] Falha no processamento de mídia:`);
-            console.error(`   📝 Message ID: ${messageData.key.id}`);
-            console.error(`   💥 Erro: ${mediaError instanceof Error ? mediaError.message : String(mediaError)}`);
-            // Continue with original URL if processing fails
-          }
-        } else {
-          console.log(`⏭️ [ATOMIC_MEDIA_SKIP] Nenhuma mídia para processar (mediaUrl vazia)`);
-        }
+        // ✅ FIX #4: Não processar mídia dentro da transação
+        // A mídia será processada FORA da transação para não bloquear o banco
+        // Apenas salvamos a URL original do WhatsApp aqui
 
         // Smart unread logic
         const isConversationActive = this.socketService.isConversationActive(conversation.id);
@@ -1569,6 +1601,25 @@ export class ConversationService {
       });
 
       // 📤 Post-transaction operations (non-critical, execute even if they fail)
+
+      // ✅ FIX #4: Processar mídia FORA da transação (de forma assíncrona)
+      // Isso evita bloquear o banco de dados com operações I/O pesadas
+      const originalMediaUrl = transactionResult.message.mediaUrl;
+      const isWhatsAppMediaUrl = originalMediaUrl?.includes('mmg.whatsapp.net');
+      
+      if (originalMediaUrl && isWhatsAppMediaUrl) {
+        // Processar mídia em background (não bloqueia o webhook)
+        this.processMediaInBackground(
+          transactionResult.message.id,
+          originalMediaUrl,
+          messageData,
+          instanceId,
+          instance.id
+        ).catch(error => {
+          console.error(`⚠️ [MEDIA_BACKGROUND] Falha ao processar mídia em background:`, error);
+          // Não falhar o webhook se mídia falhar
+        });
+      }
 
       // Auto-mark as read in Evolution API if conversation is active
       if (this.socketService.isConversationActive(transactionResult.conversation.id) && !messageData.key.fromMe) {
@@ -1596,7 +1647,7 @@ export class ConversationService {
           fromMe: transactionResult.message.fromMe,
           timestamp: transactionResult.message.timestamp,
           messageType: transactionResult.message.messageType,
-          mediaUrl: processedMediaUrl || transactionResult.message.mediaUrl, // Use processed URL if available
+          mediaUrl: transactionResult.message.mediaUrl, // URL original será atualizada depois
           fileName: transactionResult.message.fileName,
           caption: transactionResult.message.caption
         }
@@ -1650,7 +1701,7 @@ export class ConversationService {
 
 
       // 🚨 ATOMIC TRANSACTION: All database operations in one transaction
-      const transactionResult = await prisma.$transaction(async (tx) => {
+      const transactionResult = await prisma.$transaction(async (tx: any) => {
         // 1. Create or update conversation within transaction
         // PROACTIVE DUPLICATE DETECTION: Always check for existing conversations with either Brazilian format
         let conversation = null;
@@ -1849,7 +1900,7 @@ export class ConversationService {
 
 
       // 🚨 ATOMIC TRANSACTION: Update conversation in transaction
-      const transactionResult = await prisma.$transaction(async (tx) => {
+      const transactionResult = await prisma.$transaction(async (tx: any) => {
         // 1. Create or update conversation within transaction
         // PROACTIVE DUPLICATE DETECTION: Always check for existing conversations with either Brazilian format
         let conversation = null;

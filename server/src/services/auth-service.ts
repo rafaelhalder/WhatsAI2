@@ -59,6 +59,8 @@ export class AuthService {
         email: true,
         role: true,
         active: true,
+        onboardingCompleted: true,
+        onboardingStep: true,
         createdAt: true,
         updatedAt: true
       }
@@ -143,6 +145,8 @@ export class AuthService {
         role: true,
         plan: true, // ✅ IMPORTANTE: Incluir o plan
         active: true,
+        onboardingCompleted: true,
+        onboardingStep: true,
         createdAt: true,
         updatedAt: true
       }

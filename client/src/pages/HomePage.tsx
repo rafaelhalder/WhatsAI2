@@ -354,6 +354,315 @@ function HomePage() {
         </div>
       </section>
 
+      {/* Testimonials Section */}
+      <section id="testimonials" className={`py-20 bg-base-200`}>
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className={`text-3xl md:text-4xl font-bold text-base-content mb-4`}>
+              O que nossos clientes dizem
+            </h2>
+            <p className={`text-xl text-base-content/70 max-w-2xl mx-auto`}>
+              Empresas que já transformaram seu atendimento com WhatsAI
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <motion.div
+              className="bg-base-100 rounded-xl p-6 shadow-lg"
+              whileHover={{ y: -5 }}
+            >
+              <div className="flex items-center gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 fill-warning text-warning" />
+                ))}
+              </div>
+              <p className="text-base-content mb-4">
+                "Economizamos mais de R$ 3.400/mês trocando para o WhatsAI. A automação é incrível!"
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold">João Silva</p>
+                  <p className="text-sm text-base-content/70">Loja de Roupas</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="bg-base-100 rounded-xl p-6 shadow-lg"
+              whileHover={{ y: -5 }}
+            >
+              <div className="flex items-center gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 fill-warning text-warning" />
+                ))}
+              </div>
+              <p className="text-base-content mb-4">
+                "Automatizei 90% do atendimento em apenas 2 dias. Resultado surpreendente!"
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold">Maria Santos</p>
+                  <p className="text-sm text-base-content/70">E-commerce</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="bg-base-100 rounded-xl p-6 shadow-lg"
+              whileHover={{ y: -5 }}
+            >
+              <div className="flex items-center gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 fill-warning text-warning" />
+                ))}
+              </div>
+              <p className="text-base-content mb-4">
+                "Interface intuitiva e suporte excelente. Recomendo para qualquer empresa!"
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold">Carlos Oliveira</p>
+                  <p className="text-sm text-base-content/70">Agência de Marketing</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Comparison Section */}
+      <section id="comparison" className={`py-20 bg-base-100`}>
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className={`text-3xl md:text-4xl font-bold text-base-content mb-4`}>
+              WhatsAI vs Concorrentes
+            </h2>
+            <p className={`text-xl text-base-content/70 max-w-2xl mx-auto`}>
+              Veja por que somos a melhor escolha do mercado
+            </p>
+          </div>
+
+          <div className="overflow-x-auto max-w-5xl mx-auto">
+            <table className="table w-full">
+              <thead>
+                <tr>
+                  <th className="bg-base-200">Recursos</th>
+                  <th className="bg-primary text-primary-content">WhatsAI</th>
+                  <th className="bg-base-200">Z-API</th>
+                  <th className="bg-base-200">Typebot</th>
+                  <th className="bg-base-200">Evolution</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="font-semibold">Plano Gratuito</td>
+                  <td className="text-center"><Check className="w-5 h-5 text-success mx-auto" /></td>
+                  <td className="text-center text-error">✗</td>
+                  <td className="text-center"><Check className="w-5 h-5 text-success mx-auto" /></td>
+                  <td className="text-center text-error">✗</td>
+                </tr>
+                <tr>
+                  <td className="font-semibold">Multi-instância</td>
+                  <td className="text-center font-bold text-primary">5</td>
+                  <td className="text-center">1</td>
+                  <td className="text-center">1</td>
+                  <td className="text-center">3</td>
+                </tr>
+                <tr>
+                  <td className="font-semibold">Campanhas</td>
+                  <td className="text-center"><Check className="w-5 h-5 text-success mx-auto" /></td>
+                  <td className="text-center text-error">✗</td>
+                  <td className="text-center text-error">✗</td>
+                  <td className="text-center text-error">✗</td>
+                </tr>
+                <tr>
+                  <td className="font-semibold">Chatbot IA</td>
+                  <td className="text-center font-bold text-primary">GPT-4</td>
+                  <td className="text-center text-error">✗</td>
+                  <td className="text-center"><Check className="w-5 h-5 text-success mx-auto" /></td>
+                  <td className="text-center text-error">✗</td>
+                </tr>
+                <tr>
+                  <td className="font-semibold">Preço/mês</td>
+                  <td className="text-center font-bold text-success">R$ 97</td>
+                  <td className="text-center">R$ 199</td>
+                  <td className="text-center">R$ 149</td>
+                  <td className="text-center">R$ 299</td>
+                </tr>
+                <tr>
+                  <td className="font-semibold">Setup</td>
+                  <td className="text-center font-bold text-success">5 min</td>
+                  <td className="text-center">2h</td>
+                  <td className="text-center">1h</td>
+                  <td className="text-center">4h</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="text-center mt-8">
+            <p className="text-lg font-semibold text-primary">
+              💡 WhatsAI = Melhor custo-benefício do mercado
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section id="faq" className={`py-20 bg-base-200`}>
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className={`text-3xl md:text-4xl font-bold text-base-content mb-4`}>
+              Perguntas Frequentes
+            </h2>
+            <p className={`text-xl text-base-content/70 max-w-2xl mx-auto`}>
+              Tire suas dúvidas sobre o WhatsAI
+            </p>
+          </div>
+
+          <div className="max-w-3xl mx-auto space-y-4">
+            <div className="collapse collapse-arrow bg-base-100">
+              <input type="radio" name="faq-accordion" defaultChecked />
+              <div className="collapse-title text-xl font-medium">
+                Como funciona o plano gratuito?
+              </div>
+              <div className="collapse-content">
+                <p className="text-base-content/70">
+                  O plano gratuito oferece 1 instância WhatsApp, 100 mensagens por dia e 3 templates. 
+                  É perfeito para testar a plataforma sem compromisso.
+                </p>
+              </div>
+            </div>
+
+            <div className="collapse collapse-arrow bg-base-100">
+              <input type="radio" name="faq-accordion" />
+              <div className="collapse-title text-xl font-medium">
+                Posso cancelar a qualquer momento?
+              </div>
+              <div className="collapse-content">
+                <p className="text-base-content/70">
+                  Sim! Não há fidelidade. Você pode cancelar sua assinatura a qualquer momento 
+                  diretamente no painel de configurações.
+                </p>
+              </div>
+            </div>
+
+            <div className="collapse collapse-arrow bg-base-100">
+              <input type="radio" name="faq-accordion" />
+              <div className="collapse-title text-xl font-medium">
+                É seguro conectar meu WhatsApp?
+              </div>
+              <div className="collapse-content">
+                <p className="text-base-content/70">
+                  Absolutamente! Usamos a Evolution API oficial e criptografia end-to-end. 
+                  Seus dados estão 100% protegidos e seguros.
+                </p>
+              </div>
+            </div>
+
+            <div className="collapse collapse-arrow bg-base-100">
+              <input type="radio" name="faq-accordion" />
+              <div className="collapse-title text-xl font-medium">
+                Preciso de conhecimento técnico?
+              </div>
+              <div className="collapse-content">
+                <p className="text-base-content/70">
+                  Não! Nossa interface é intuitiva e fácil de usar. Você conecta seu WhatsApp 
+                  em menos de 5 minutos sem precisar de conhecimento técnico.
+                </p>
+              </div>
+            </div>
+
+            <div className="collapse collapse-arrow bg-base-100">
+              <input type="radio" name="faq-accordion" />
+              <div className="collapse-title text-xl font-medium">
+                Como funciona o suporte?
+              </div>
+              <div className="collapse-content">
+                <p className="text-base-content/70">
+                  Planos gratuitos têm suporte por email. Planos pagos têm suporte prioritário 
+                  com SLA de 12h (PRO) ou suporte dedicado 24/7 (ENTERPRISE).
+                </p>
+              </div>
+            </div>
+
+            <div className="collapse collapse-arrow bg-base-100">
+              <input type="radio" name="faq-accordion" />
+              <div className="collapse-title text-xl font-medium">
+                Existe garantia de reembolso?
+              </div>
+              <div className="collapse-content">
+                <p className="text-base-content/70">
+                  Sim! Oferecemos garantia de 30 dias. Se não ficar satisfeito, 
+                  devolvemos 100% do seu dinheiro, sem perguntas.
+                </p>
+              </div>
+            </div>
+
+            <div className="collapse collapse-arrow bg-base-100">
+              <input type="radio" name="faq-accordion" />
+              <div className="collapse-title text-xl font-medium">
+                Posso mudar de plano depois?
+              </div>
+              <div className="collapse-content">
+                <p className="text-base-content/70">
+                  Claro! Você pode fazer upgrade ou downgrade a qualquer momento. 
+                  Upgrades são aplicados imediatamente, downgrades no final do período atual.
+                </p>
+              </div>
+            </div>
+
+            <div className="collapse collapse-arrow bg-base-100">
+              <input type="radio" name="faq-accordion" />
+              <div className="collapse-title text-xl font-medium">
+                Quantas mensagens posso enviar?
+              </div>
+              <div className="collapse-content">
+                <p className="text-base-content/70">
+                  Depende do plano: FREE (100/dia), PRO (5.000/dia), ENTERPRISE (ilimitado). 
+                  As campanhas respeitam rate limiting para evitar bloqueios.
+                </p>
+              </div>
+            </div>
+
+            <div className="collapse collapse-arrow bg-base-100">
+              <input type="radio" name="faq-accordion" />
+              <div className="collapse-title text-xl font-medium">
+                O WhatsAI funciona em qual região?
+              </div>
+              <div className="collapse-content">
+                <p className="text-base-content/70">
+                  WhatsAI funciona globalmente! Suportamos números de WhatsApp de qualquer país. 
+                  Nossa infraestrutura está otimizada para o Brasil, mas aceita conexões mundiais.
+                </p>
+              </div>
+            </div>
+
+            <div className="collapse collapse-arrow bg-base-100">
+              <input type="radio" name="faq-accordion" />
+              <div className="collapse-title text-xl font-medium">
+                Vocês têm API para integração?
+              </div>
+              <div className="collapse-content">
+                <p className="text-base-content/70">
+                  Sim! Planos PRO e ENTERPRISE incluem acesso completo à nossa API REST 
+                  para integrar com seus sistemas e automações.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className={`py-20 text-primary-content bg-primary`}>
         <div className="container mx-auto px-4 text-center">

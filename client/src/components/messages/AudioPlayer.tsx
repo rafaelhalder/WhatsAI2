@@ -113,7 +113,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ mediaUrl, fromMe }) =>
   return (
     <div 
       className={`flex items-center gap-2 p-2 rounded-lg max-w-xs ${
-        fromMe ? 'bg-[#005C4B]' : 'bg-white'
+        fromMe ? 'bg-[#005C4B]' : 'bg-base-100'
       }`}
       style={{ minWidth: '250px' }}
     >
@@ -126,8 +126,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ mediaUrl, fromMe }) =>
         disabled={isLoading || !!loadError}
         className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
           fromMe 
-            ? 'bg-white/20 hover:bg-white/30 text-white' 
-            : 'bg-[#128C7E] hover:bg-[#0F7A6A] text-white'
+            ? 'bg-base-100/20 hover:bg-base-100/30 text-primary-content' 
+            : 'bg-primary hover:bg-primary-focus text-primary-content'
         } ${(isLoading || loadError) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         title={isPlaying ? 'Pausar' : 'Reproduzir'}
       >
@@ -145,7 +145,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ mediaUrl, fromMe }) =>
       {/* Waveform visualization */}
       <div className="flex-1 min-w-0 relative h-8 flex items-center gap-[2px]">
         {loadError ? (
-          <div className="text-xs text-red-500 px-2">{loadError}</div>
+          <div className="text-xs text-error px-2">{loadError}</div>
         ) : (
           waveformBars.map((height, index) => {
             const isPassed = progress > (index / waveformBars.length) * 100;
@@ -157,7 +157,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ mediaUrl, fromMe }) =>
                   height: `${height}%`,
                   backgroundColor: fromMe 
                     ? (isPassed ? '#ffffff' : '#ffffff80')
-                    : (isPassed ? '#128C7E' : '#00000040'),
+                    : (isPassed ? 'hsl(var(--p))' : 'rgba(0, 0, 0, 0.3)'),
                 }}
               />
             );
@@ -167,7 +167,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ mediaUrl, fromMe }) =>
 
       {/* Time Display */}
       <div className={`flex-shrink-0 text-xs font-mono ${
-        fromMe ? 'text-white/80' : 'text-gray-600'
+        fromMe ? 'text-primary-content/80' : 'text-base-content/60'
       }`}>
         {isPlaying ? currentTime : duration}
       </div>
@@ -177,7 +177,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ mediaUrl, fromMe }) =>
         onClick={handleDownload}
         disabled={!!loadError}
         className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-opacity ${
-          fromMe ? 'text-white/60 hover:text-white' : 'text-gray-400 hover:text-gray-600'
+          fromMe ? 'text-primary-content/60 hover:text-primary-content' : 'text-base-content/40 hover:text-base-content/60'
         } ${(loadError) ? 'opacity-50 cursor-not-allowed' : ''}`}
         title="Baixar áudio"
       >

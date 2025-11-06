@@ -187,7 +187,9 @@ export class ConversationRepository {
             status: true,
             mediaUrl: true,
             fileName: true,
-            caption: true
+            caption: true,
+            senderName: true,
+            senderNumber: true
           }
         }
       }
