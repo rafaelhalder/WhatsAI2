@@ -1,10 +1,35 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { ConversationController } from '../controllers/conversation-controller';
 import { authMiddleware } from '../middlewares/auth-middleware';
+import { checkMessageLimit, incrementMessageCount } from '../../middleware/check-limits';
 import multer from 'multer';
 
 const router = Router();
 const conversationController = new ConversationController();
+
+/**
+ * Helper to wrap message sending with limit increment
+ * Ensures counter is only incremented on successful send
+ */
+const withMessageCountIncrement = (
+  handler: (req: Request, res: Response) => Promise<void>
+) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await handler(req, res);
+      // Only increment if response was successful (status < 400)
+      if (res.statusCode < 400) {
+        await incrementMessageCount(req, res, next);
+      }
+    } catch (error) {
+      console.error('[CONVERSATION] Message send failed, not incrementing counter:', error);
+      // Error already handled by controller, just ensure we don't hang
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, error: 'Internal server error' });
+      }
+    }
+  };
+};
 
 // Configure multer for file uploads
 const upload = multer({
@@ -52,27 +77,29 @@ router.get('/:conversationId/messages', (req, res) => {
 });
 
 // Send message in a conversation
-router.post('/:conversationId/messages', (req, res) => {
-  conversationController.sendMessage(req, res);
-});
+router.post('/:conversationId/messages', 
+  checkMessageLimit, 
+  withMessageCountIncrement((req, res) => conversationController.sendMessage(req, res))
+);
 
 // Send media message in a conversation
-router.post('/:conversationId/media', (req, res) => {
-  conversationController.sendMediaMessage(req, res);
-});
+router.post('/:conversationId/media', 
+  checkMessageLimit, 
+  withMessageCountIncrement((req, res) => conversationController.sendMediaMessage(req, res))
+);
 
 // Upload and send media file in a conversation
 router.post('/:conversationId/upload-media',
+  checkMessageLimit,
   upload.single('file'),
-  (req, res) => {
-    conversationController.uploadAndSendMediaMessage(req, res);
-  }
+  withMessageCountIncrement((req, res) => conversationController.uploadAndSendMediaMessage(req, res))
 );
 
 // Send message in a conversation (alternative route for instance)
-router.post('/instance/:instanceId/send', (req, res) => {
-  conversationController.sendMessage(req, res);
-});
+router.post('/instance/:instanceId/send', 
+  checkMessageLimit, 
+  withMessageCountIncrement((req, res) => conversationController.sendMessage(req, res))
+);
 
 // Mark conversation as read
 router.patch('/:conversationId/read', (req, res) => {

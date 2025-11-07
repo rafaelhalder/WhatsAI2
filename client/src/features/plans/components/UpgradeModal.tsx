@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, AlertTriangle, ArrowRight, Crown, Zap } from 'lucide-react';
+import { X, AlertTriangle, ArrowRight, Crown, Zap, Rocket } from 'lucide-react';
 import { PlanType } from '../types/plans';
 
 interface UpgradeModalProps {
@@ -49,35 +49,49 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
   const config = limitMessages[limitType];
 
   const getRecommendedPlan = (): PlanType => {
-    if (currentPlan === 'FREE') return 'PRO';
-    if (currentPlan === 'PRO') return 'ENTERPRISE';
-    return 'ENTERPRISE';
+    if (currentPlan === 'FREE') return 'STARTER';
+    if (currentPlan === 'STARTER') return 'PRO';
+    if (currentPlan === 'PRO') return 'BUSINESS';
+    return 'BUSINESS';
   };
 
   const recommendedPlan = getRecommendedPlan();
 
   const planBenefits = {
+    STARTER: {
+      icon: Rocket,
+      price: 47,
+      benefits: [
+        '2 instâncias WhatsApp',
+        '1.000 mensagens/dia',
+        '20 templates',
+        '5 campanhas/mês',
+        'Envio em massa',
+        'Auto-respostas básicas'
+      ]
+    },
     PRO: {
       icon: Zap,
       price: 97,
       benefits: [
         '5 instâncias WhatsApp',
         '5.000 mensagens/dia',
-        '20 templates',
-        '10 campanhas simultâneas',
+        '50 templates',
+        '10 campanhas/mês',
         'Envio em massa',
-        'Analytics avançado'
+        'Analytics avançado',
+        'API de integração'
       ]
     },
-    ENTERPRISE: {
+    BUSINESS: {
       icon: Crown,
-      price: 497,
+      price: 297,
       benefits: [
         'Instâncias ilimitadas',
         'Mensagens ilimitadas',
         'Templates ilimitados',
         'Campanhas ilimitadas',
-        'Acesso à API',
+        'Acesso à API completa',
         'Suporte prioritário',
         'Integrações customizadas',
         'White label'
@@ -85,7 +99,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
     }
   };
 
-  const recommended = planBenefits[recommendedPlan as 'PRO' | 'ENTERPRISE'];
+  const recommended = planBenefits[recommendedPlan as 'STARTER' | 'PRO' | 'BUSINESS'];
   const Icon = recommended.icon;
 
   return (

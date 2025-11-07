@@ -33,9 +33,11 @@ router.get('/', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error getting plans:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return res.status(500).json({
       success: false,
       error: 'Erro ao buscar planos',
+      message: errorMessage,
     });
   }
 });
@@ -67,9 +69,11 @@ router.get('/current', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error getting current plan:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return res.status(500).json({
       success: false,
       error: 'Erro ao buscar plano atual',
+      message: errorMessage,
     });
   }
 });
@@ -98,9 +102,11 @@ router.get('/usage', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error getting usage:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return res.status(500).json({
       success: false,
       error: 'Erro ao buscar uso',
+      message: errorMessage,
     });
   }
 });

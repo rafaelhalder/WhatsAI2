@@ -1,7 +1,7 @@
 import React from 'react';
-import { Crown, Zap, Star } from 'lucide-react';
+import { Crown, Zap, Star, Rocket } from 'lucide-react';
 
-type PlanType = 'FREE' | 'PRO' | 'ENTERPRISE';
+type PlanType = 'FREE' | 'STARTER' | 'PRO' | 'BUSINESS';
 
 interface PlanBadgeProps {
   plan: PlanType;
@@ -21,14 +21,20 @@ export const PlanBadge: React.FC<PlanBadgeProps> = ({
       colorClasses: 'bg-base-300 text-base-content',
       iconColor: 'text-base-content/60'
     },
+    STARTER: {
+      label: 'Starter',
+      icon: Rocket,
+      colorClasses: 'bg-info text-info-content',
+      iconColor: 'text-info-content'
+    },
     PRO: {
       label: 'Pro',
       icon: Zap,
       colorClasses: 'bg-primary text-primary-content',
       iconColor: 'text-primary-content'
     },
-    ENTERPRISE: {
-      label: 'Enterprise',
+    BUSINESS: {
+      label: 'Business',
       icon: Crown,
       colorClasses: 'bg-gradient-to-r from-warning to-error text-white',
       iconColor: 'text-white'

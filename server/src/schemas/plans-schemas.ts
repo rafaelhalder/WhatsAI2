@@ -6,8 +6,8 @@
 import { z } from 'zod';
 
 // Plan type enum
-export const planTypeSchema = z.enum(['FREE', 'PRO', 'ENTERPRISE'], {
-  errorMap: () => ({ message: 'Plano inválido. Use: FREE, PRO ou ENTERPRISE' }),
+export const planTypeSchema = z.enum(['FREE', 'STARTER', 'PRO', 'BUSINESS'], {
+  errorMap: () => ({ message: 'Plano inválido. Use: FREE, STARTER, PRO ou BUSINESS' }),
 });
 
 // Upgrade plan request

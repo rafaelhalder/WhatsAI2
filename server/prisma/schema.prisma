@@ -473,6 +473,7 @@ model AutoResponse {
   // Response configuration
   response   String   @db.Text // Mensagem a ser enviada
   useVariables Boolean @default(true) // Habilitar substituição de variáveis
+  useAI      Boolean  @default(false) // Use AI (GPT) to enhance responses
   
   // Media attachment
   mediaUrl   String?

@@ -18,6 +18,7 @@ export const UsageBar: React.FC<UsageBarProps> = ({
   showWarning = true,
   warningThreshold = 80
 }) => {
+  
   const isUnlimited = limit === -1 || limit === Infinity;
   const percentage = isUnlimited ? 0 : Math.min((current / limit) * 100, 100);
   const isNearLimit = percentage >= warningThreshold;

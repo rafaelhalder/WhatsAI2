@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [savedSettings, setSavedSettings] = useState<UserSettings>(settings);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
 
   // Detectar mudanças não salvas
   useEffect(() => {
@@ -265,6 +266,50 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Privacy Settings */}
+        <div className="card bg-base-100 shadow-xl rounded-2xl border border-base-300 p-6 md:p-8 mb-6">
+          <h2 className="text-xl font-semibold text-base-content mb-4 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Privacidade
+          </h2>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-base-content">Mostrar Status Online</p>
+                <p className="text-sm text-base-content/60">Permitir que outros vejam quando você está online</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.privacy?.showOnlineStatus ?? true}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  privacy: { ...settings.privacy, showOnlineStatus: e.target.checked }
+                })}
+                className="toggle toggle-primary"
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-base-content">Coleta de Dados</p>
+                <p className="text-sm text-base-content/60">Permitir coleta de dados anônimos para melhorias</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.privacy?.allowDataCollection ?? false}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  privacy: { ...settings.privacy, allowDataCollection: e.target.checked }
+                })}
+                className="toggle toggle-primary"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Account Actions */}
         <div className="card bg-base-100 shadow-xl rounded-2xl border border-base-300 p-6 md:p-8 mb-6">
           <h2 className="text-xl font-semibold text-base-content mb-4 flex items-center gap-2">
@@ -373,23 +418,60 @@ export default function SettingsPage() {
                   type="password" 
                   placeholder="Senha" 
                   className="input input-bordered input-error"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
                 />
               </div>
 
               <div className="modal-action">
                 <button 
-                  onClick={() => setShowDeleteModal(false)}
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeletePassword('');
+                  }}
                   className="btn btn-ghost"
                 >
                   Cancelar
                 </button>
                 <button 
-                  onClick={() => {
-                    // TODO: Validar senha e chamar API de exclusão
-                    toast.success('Conta excluída (funcionalidade em desenvolvimento)');
-                    setShowDeleteModal(false);
+                  onClick={async () => {
+                    if (!deletePassword) {
+                      toast.error('Por favor, digite sua senha');
+                      return;
+                    }
+                    
+                    try {
+                      const token = localStorage.getItem('whatsai_token') || localStorage.getItem('token');
+                      
+                      const response = await fetch('http://localhost:3001/api/auth/delete-account', {
+                        method: 'DELETE',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ password: deletePassword }),
+                      });
+                      
+                      const data = await response.json();
+                      
+                      if (data.success) {
+                        toast.success('Conta excluída com sucesso');
+                        // Clear localStorage and redirect
+                        localStorage.clear();
+                        window.location.href = '/';
+                      } else {
+                        toast.error(data.message || 'Erro ao excluir conta');
+                      }
+                    } catch (error) {
+                      console.error('Delete account error:', error);
+                      toast.error('Erro ao conectar com o servidor');
+                    } finally {
+                      setShowDeleteModal(false);
+                      setDeletePassword('');
+                    }
                   }}
                   className="btn btn-error"
+                  disabled={!deletePassword}
                 >
                   Confirmar Exclusão
                 </button>

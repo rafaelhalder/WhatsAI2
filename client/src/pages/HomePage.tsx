@@ -167,10 +167,10 @@ function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {/* Plano FREE */}
             <motion.div
-              className="bg-base-200 rounded-2xl p-8 border-2 border-base-300 hover:border-primary/50 transition-all"
+              className="bg-base-200 rounded-2xl p-6 border-2 border-base-300 hover:border-primary/50 transition-all"
               whileHover={{ y: -5 }}
             >
               <div className="flex items-center gap-3 mb-4">
@@ -201,7 +201,7 @@ function HomePage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-5 h-5 text-success flex-shrink-0" />
-                  <span className="text-sm">3 templates de mensagem</span>
+                  <span className="text-sm">5 templates</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-5 h-5 text-success flex-shrink-0" />
@@ -221,9 +221,62 @@ function HomePage() {
               </button>
             </motion.div>
 
+            {/* Plano STARTER */}
+            <motion.div
+              className="bg-base-200 rounded-2xl p-6 border-2 border-accent hover:border-accent/70 transition-all"
+              whileHover={{ y: -5 }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-accent" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">Starter</h3>
+                  <p className="text-sm text-base-content/70">PMEs</p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold">R$ 47</span>
+                  <span className="text-base-content/70">/mês</span>
+                </div>
+              </div>
+
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-success flex-shrink-0" />
+                  <span className="text-sm">2 instâncias WhatsApp</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-success flex-shrink-0" />
+                  <span className="text-sm">1.000 mensagens por dia</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-success flex-shrink-0" />
+                  <span className="text-sm">20 templates</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-success flex-shrink-0" />
+                  <span className="text-sm">5 campanhas/mês</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-success flex-shrink-0" />
+                  <span className="text-sm">Auto-resposta básica</span>
+                </li>
+              </ul>
+
+              <button
+                onClick={() => navigate('/register')}
+                className="btn btn-accent w-full"
+              >
+                Escolher Starter
+              </button>
+            </motion.div>
+
             {/* Plano PRO */}
             <motion.div
-              className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl p-8 border-2 border-primary shadow-xl relative"
+              className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl p-6 border-2 border-primary shadow-xl relative"
               whileHover={{ y: -5 }}
             >
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
@@ -232,11 +285,11 @@ function HomePage() {
               
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full bg-primary/30 flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-primary" />
+                  <Users className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold">Profissional</h3>
-                  <p className="text-sm text-base-content/70">Para empresas</p>
+                  <h3 className="text-2xl font-bold">Pro</h3>
+                  <p className="text-sm text-base-content/70">Empresas</p>
                 </div>
               </div>
               
@@ -258,23 +311,15 @@ function HomePage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-5 h-5 text-success flex-shrink-0" />
-                  <span className="text-sm">50 templates de mensagem</span>
+                  <span className="text-sm">50 templates</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-5 h-5 text-success flex-shrink-0" />
-                  <span className="text-sm">10 campanhas/mês</span>
+                  <span className="text-sm">Campanhas ilimitadas</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-5 h-5 text-success flex-shrink-0" />
-                  <span className="text-sm">5 membros na equipe</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-success flex-shrink-0" />
-                  <span className="text-sm">API de integração</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-success flex-shrink-0" />
-                  <span className="text-sm">Suporte prioritário</span>
+                  <span className="text-sm">Chatbot + API completa</span>
                 </li>
               </ul>
 
@@ -282,13 +327,13 @@ function HomePage() {
                 onClick={() => navigate('/register')}
                 className="btn btn-primary w-full"
               >
-                Começar Agora
+                Escolher Pro
               </button>
             </motion.div>
 
-            {/* Plano ENTERPRISE */}
+            {/* Plano BUSINESS */}
             <motion.div
-              className="bg-gradient-to-br from-secondary/10 to-accent/10 rounded-2xl p-8 border-2 border-secondary hover:border-secondary/70 transition-all"
+              className="bg-gradient-to-br from-secondary/10 to-accent/10 rounded-2xl p-6 border-2 border-secondary hover:border-secondary/70 transition-all"
               whileHover={{ y: -5 }}
             >
               <div className="flex items-center gap-3 mb-4">
@@ -296,14 +341,14 @@ function HomePage() {
                   <Crown className="w-6 h-6 text-secondary" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold">Enterprise</h3>
-                  <p className="text-sm text-base-content/70">Solução completa</p>
+                  <h3 className="text-2xl font-bold">Business</h3>
+                  <p className="text-sm text-base-content/70">Enterprise</p>
                 </div>
               </div>
               
               <div className="mb-6">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-bold">R$ 497</span>
+                  <span className="text-4xl font-bold">R$ 297</span>
                   <span className="text-base-content/70">/mês</span>
                 </div>
               </div>
@@ -319,23 +364,11 @@ function HomePage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-5 h-5 text-success flex-shrink-0" />
-                  <span className="text-sm">Templates ilimitados</span>
+                  <span className="text-sm">Tudo ilimitado</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-5 h-5 text-success flex-shrink-0" />
-                  <span className="text-sm">Campanhas ilimitadas</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-success flex-shrink-0" />
-                  <span className="text-sm">Equipe ilimitada</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-success flex-shrink-0" />
-                  <span className="text-sm">API completa</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-success flex-shrink-0" />
-                  <span className="text-sm">Suporte dedicado 24/7</span>
+                  <span className="text-sm">Suporte 24/7</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-5 h-5 text-success flex-shrink-0" />
@@ -486,7 +519,12 @@ function HomePage() {
                 </tr>
                 <tr>
                   <td className="font-semibold">Chatbot IA</td>
-                  <td className="text-center font-bold text-primary">GPT-4</td>
+                  <td className="text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="font-bold text-primary">GPT-4o</span>
+                      <span className="text-xs text-base-content/60">(configurável)</span>
+                    </div>
+                  </td>
                   <td className="text-center text-error">✗</td>
                   <td className="text-center"><Check className="w-5 h-5 text-success mx-auto" /></td>
                   <td className="text-center text-error">✗</td>
@@ -537,7 +575,7 @@ function HomePage() {
               </div>
               <div className="collapse-content">
                 <p className="text-base-content/70">
-                  O plano gratuito oferece 1 instância WhatsApp, 100 mensagens por dia e 3 templates. 
+                  O plano gratuito oferece 1 instância WhatsApp, 100 mensagens por dia e 5 templates. 
                   É perfeito para testar a plataforma sem compromisso.
                 </p>
               </div>
@@ -590,7 +628,7 @@ function HomePage() {
               <div className="collapse-content">
                 <p className="text-base-content/70">
                   Planos gratuitos têm suporte por email. Planos pagos têm suporte prioritário 
-                  com SLA de 12h (PRO) ou suporte dedicado 24/7 (ENTERPRISE).
+                  com SLA de 12h (PRO) ou suporte dedicado 24/7 (BUSINESS).
                 </p>
               </div>
             </div>
@@ -628,8 +666,8 @@ function HomePage() {
               </div>
               <div className="collapse-content">
                 <p className="text-base-content/70">
-                  Depende do plano: FREE (100/dia), PRO (5.000/dia), ENTERPRISE (ilimitado). 
-                  As campanhas respeitam rate limiting para evitar bloqueios.
+                  Depende do plano: FREE (100/dia), STARTER (1.000/dia), PRO (5.000/dia), BUSINESS (ilimitado). 
+                  As campanhas respeitam rate limiting para evitar bloqueios do WhatsApp.
                 </p>
               </div>
             </div>
@@ -654,7 +692,7 @@ function HomePage() {
               </div>
               <div className="collapse-content">
                 <p className="text-base-content/70">
-                  Sim! Planos PRO e ENTERPRISE incluem acesso completo à nossa API REST 
+                  Sim! Planos PRO e BUSINESS incluem acesso completo à nossa API REST 
                   para integrar com seus sistemas e automações.
                 </p>
               </div>

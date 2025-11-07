@@ -1,4 +1,5 @@
 import { prisma } from '../database/prisma';
+import { openAIService } from './openai-service';
 
 interface CreateAutoResponseDto {
   instanceId: string;
@@ -8,6 +9,7 @@ interface CreateAutoResponseDto {
   caseSensitive?: boolean;
   response: string;
   useVariables?: boolean;
+  useAI?: boolean; // Enable AI enhancement for responses
   mediaUrl?: string;
   mediaType?: string;
   active?: boolean;
@@ -20,6 +22,7 @@ interface UpdateAutoResponseDto {
   caseSensitive?: boolean;
   response?: string;
   useVariables?: boolean;
+  useAI?: boolean; // Enable AI enhancement for responses
   mediaUrl?: string;
   mediaType?: string;
   active?: boolean;
@@ -346,6 +349,66 @@ class AutoResponseService {
         lastTriggeredAt: ar.lastTriggeredAt,
       })),
     };
+  }
+
+  /**
+   * Process auto-response with optional AI enhancement
+   * Returns the final response message to send
+   */
+  async processAutoResponse(
+    autoResponse: any,
+    userMessage: string,
+    variables?: Record<string, string>
+  ): Promise<string> {
+    let response = autoResponse.response;
+
+    // Replace variables if enabled
+    if (autoResponse.useVariables && variables) {
+      response = this.replaceVariables(response, variables);
+    }
+
+    // Enhance with AI if enabled and OpenAI is available
+    if (autoResponse.useAI && openAIService.isAvailable()) {
+      try {
+        // Safely get first keyword or use default
+        const matchedKeyword = Array.isArray(autoResponse.keywords) && autoResponse.keywords.length > 0
+          ? autoResponse.keywords[0]
+          : 'general inquiry';
+        
+        response = await openAIService.generateSmartAutoResponse(
+          userMessage,
+          matchedKeyword,
+          response
+        );
+      } catch (error) {
+        console.error('Error enhancing auto-response with AI:', error);
+        // Fall back to base response if AI fails
+      }
+    }
+
+    return response;
+  }
+
+  /**
+   * Generate AI-powered response (for PRO/BUSINESS plans)
+   * This is a direct AI response without keyword matching
+   */
+  async generateAIResponse(
+    userMessage: string,
+    systemPrompt?: string
+  ): Promise<string> {
+    if (!openAIService.isAvailable()) {
+      throw new Error('AI chatbot is not available. Please configure OPENAI_API_KEY.');
+    }
+
+    return await openAIService.generateResponse(userMessage, systemPrompt);
+  }
+
+  /**
+   * Check if AI features are available
+   */
+  isAIAvailable(): boolean {
+    return openAIService.isAvailable();
   }
 }
 

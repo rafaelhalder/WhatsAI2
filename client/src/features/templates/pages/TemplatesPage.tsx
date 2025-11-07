@@ -56,8 +56,8 @@ export const TemplatesPage: React.FC = () => {
         plansService.getUsage(token)
       ]);
       setCurrentPlan(planData.plan);
-      setCurrentUsage(usageData.templates.current);
-      setLimit(usageData.templates.limit);
+      setCurrentUsage(usageData.usage.templates.current);
+      setLimit(usageData.usage.templates.limit);
     } catch (error) {
       console.error('Error loading plan info:', error);
     }

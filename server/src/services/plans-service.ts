@@ -67,19 +67,34 @@ export class PlansService {
    * Get user's current plan and limits
    */
   static async getUserPlan(userId: string): Promise<{ plan: PlanType; limits: PlanLimits }> {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { plan: true, planLimits: true },
-    });
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { plan: true, planLimits: true },
+      });
 
-    if (!user) {
-      throw new Error('Usuário não encontrado');
+      if (!user) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      const planType = user.plan as PlanType;
+      
+      // Safe JSON parsing with fallback
+      let limits: PlanLimits;
+      try {
+        limits = typeof user.planLimits === 'string' 
+          ? JSON.parse(user.planLimits) 
+          : user.planLimits as unknown as PlanLimits;
+      } catch (error) {
+        console.error('Error parsing planLimits in getUserPlan, using defaults:', error);
+        limits = getDefaultLimits(planType);
+      }
+
+      return { plan: planType, limits };
+    } catch (error) {
+      console.error('Error in getUserPlan:', error);
+      throw error;
     }
-
-    const planType = user.plan as PlanType;
-    const limits = user.planLimits as unknown as PlanLimits;
-
-    return { plan: planType, limits };
   }
 
   /**
@@ -135,7 +150,22 @@ export class PlansService {
       }
 
       // Check if usage needs to be reset
-      await this.checkAndResetDailyUsage(userId, usageStats);
+      const shouldReset = await this.shouldResetUsage(usageStats);
+      if (shouldReset) {
+        // Reset usage stats
+        usageStats = {
+          messages_today: 0,
+          last_reset: new Date().toISOString(),
+          campaigns_this_month: usageStats.campaigns_this_month || 0,
+          storage_used_gb: usageStats.storage_used_gb || 0,
+        };
+        
+        // Save to database
+        await prisma.user.update({
+          where: { id: userId },
+          data: { usageStats: usageStats as any },
+        });
+      }
 
       // Count campaigns this month
       const startOfMonth = new Date();
@@ -238,7 +268,7 @@ export class PlansService {
         if (!usage.limits.broadcasts) {
           return {
             allowed: false,
-            reason: 'Envio em massa não disponível no seu plano. Faça upgrade para PRO ou ENTERPRISE.',
+            reason: 'Envio em massa não disponível no seu plano. Faça upgrade para STARTER, PRO ou BUSINESS.',
           };
         }
         if (!usage.canCreateCampaign && usage.usage.campaigns_this_month) {

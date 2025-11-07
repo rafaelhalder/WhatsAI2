@@ -1,4 +1,4 @@
-export type PlanType = 'FREE' | 'PRO' | 'ENTERPRISE';
+export type PlanType = 'FREE' | 'STARTER' | 'PRO' | 'BUSINESS';
 
 export interface PlanLimits {
   instances: number; // -1 = unlimited
@@ -32,10 +32,18 @@ export interface UsageItem {
 
 export interface UsageResponse {
   plan: PlanType;
-  instances: UsageItem;
-  messages_today: UsageItem;
-  templates: UsageItem;
-  campaigns?: UsageItem;
+  planDisplayName: string;
+  limits: PlanLimits;
+  usage: {
+    instances: UsageItem;
+    messages_today: UsageItem;
+    templates: UsageItem;
+    campaigns_this_month?: UsageItem;
+  };
+  canCreateInstance: boolean;
+  canSendMessage: boolean;
+  canCreateTemplate: boolean;
+  canCreateCampaign: boolean;
 }
 
 export interface CheckActionRequest {

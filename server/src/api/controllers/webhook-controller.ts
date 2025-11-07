@@ -769,6 +769,23 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
    */
   private async sendOutOfOfficeMessage(instance: any, messageData: any): Promise<void> {
     try {
+      const { PlansService } = await import('../../services/plans-service');
+
+      // 🔐 Verificar limite de mensagens do usuário
+      try {
+        const canSend = await PlansService.canPerformAction(instance.userId, 'send_message');
+        
+        if (!canSend.allowed) {
+          console.log(`⚠️ [OUT_OF_OFFICE] Message limit exceeded, skipping out-of-office message`);
+          console.log(`   Reason: ${canSend.reason}`);
+          return;
+        }
+      } catch (error) {
+        console.error(`❌ [OUT_OF_OFFICE] Error checking message limits:`, error);
+        // Em caso de erro ao verificar limites, não enviar mensagem por segurança
+        return;
+      }
+
       const remoteJid = messageData.key.remoteJid;
       const pushName = messageData.pushName || messageData.key.remoteJid?.split('@')[0] || 'Usuário';
       const now = new Date();
@@ -801,6 +818,16 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
       );
       
       console.log(`✅ [OUT_OF_OFFICE] Message sent successfully`);
+
+      // 📊 Incrementar contador de mensagens do usuário
+      try {
+        await PlansService.incrementMessageCount(instance.userId, 1);
+        console.log(`📊 [OUT_OF_OFFICE] Message count incremented for user`);
+      } catch (error) {
+        console.error(`❌ [OUT_OF_OFFICE] Error incrementing message count:`, error);
+        // Não falhar se não conseguir incrementar contador (mensagem já foi enviada)
+      }
+
     } catch (error: any) {
       console.error(`❌ [OUT_OF_OFFICE] Error:`, error);
     }
@@ -813,6 +840,7 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
     try {
       const { autoResponseService } = await import('../../services/auto-response-service');
       const { MessageTypeService } = await import('../../services/messages/MessageTypeService');
+      const { PlansService } = await import('../../services/plans-service');
       
       // Extrair conteúdo da mensagem
       const messageType = MessageTypeService.getMessageType(messageData);
@@ -835,6 +863,39 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
       
       console.log(`✅ [AUTO_RESPONSE] Match found: "${autoResponse.name}"`);
       
+      // Buscar a instância para obter configurações de API e userId
+      const instance = await prisma.whatsAppInstance.findUnique({
+        where: { id: instanceId },
+        select: {
+          id: true,
+          userId: true,
+          evolutionApiUrl: true,
+          evolutionApiKey: true,
+          evolutionInstanceName: true,
+          status: true,
+        }
+      });
+      
+      if (!instance || instance.status !== 'CONNECTED') {
+        console.log(`⚠️ [AUTO_RESPONSE] Instance not connected, skipping`);
+        return;
+      }
+
+      // 🔐 Verificar limite de mensagens do usuário
+      try {
+        const canSend = await PlansService.canPerformAction(instance.userId, 'send_message');
+        
+        if (!canSend.allowed) {
+          console.log(`⚠️ [AUTO_RESPONSE] Message limit exceeded for user, skipping auto-response`);
+          console.log(`   Reason: ${canSend.reason}`);
+          return;
+        }
+      } catch (error) {
+        console.error(`❌ [AUTO_RESPONSE] Error checking message limits:`, error);
+        // Em caso de erro ao verificar limites, não enviar auto-resposta por segurança
+        return;
+      }
+      
       // Preparar variáveis para substituição
       const remoteJid = messageData.key.remoteJid;
       const pushName = messageData.pushName || messageData.key.remoteJid?.split('@')[0] || 'Usuário';
@@ -854,16 +915,6 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
       }
       
       console.log(`📤 [AUTO_RESPONSE] Sending response: "${responseMessage}"`);
-      
-      // Buscar a instância para obter configurações de API
-      const instance = await prisma.whatsAppInstance.findUnique({
-        where: { id: instanceId },
-      });
-      
-      if (!instance || instance.status !== 'CONNECTED') {
-        console.log(`⚠️ [AUTO_RESPONSE] Instance not connected, skipping`);
-        return;
-      }
       
       // Enviar resposta via Evolution API
       const apiService = new EvolutionApiService(instance.evolutionApiUrl, instance.evolutionApiKey);
@@ -887,6 +938,16 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
       }
       
       console.log(`✅ [AUTO_RESPONSE] Response sent successfully`);
+
+      // 📊 Incrementar contador de mensagens do usuário
+      try {
+        await PlansService.incrementMessageCount(instance.userId, 1);
+        console.log(`📊 [AUTO_RESPONSE] Message count incremented for user`);
+      } catch (error) {
+        console.error(`❌ [AUTO_RESPONSE] Error incrementing message count:`, error);
+        // Não falhar se não conseguir incrementar contador (mensagem já foi enviada)
+      }
+      
     } catch (error: any) {
       console.error(`❌ [AUTO_RESPONSE] Error:`, error);
       throw error;

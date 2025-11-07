@@ -13,6 +13,7 @@ import {
 } from '../schemas/campaign-schemas';
 import { templateService } from './template-service';
 import { EvolutionApiService } from './evolution-api';
+import { PlansService } from './plans-service';
 import { EventEmitter } from 'events';
 import { campaignLogger } from '../utils/campaign-logger';
 
@@ -430,7 +431,10 @@ export class CampaignService extends EventEmitter {
   private async processCampaign(campaignId: string): Promise<void> {
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
-      include: { instance: true }
+      include: { 
+        instance: true,
+        user: true // Include user to check limits
+      }
     });
 
     if (!campaign || campaign.status !== 'RUNNING') {
@@ -498,6 +502,52 @@ export class CampaignService extends EventEmitter {
 
     campaignLogger.log(`📤 [CAMPAIGN] Enviando mensagem para ${message.recipient}`, { messageId });
 
+    // 🔐 Verificar limite de mensagens do usuário antes de enviar
+    try {
+      const canSend = await PlansService.canPerformAction(campaign.userId, 'send_message');
+      
+      if (!canSend.allowed) {
+        campaignLogger.log(`⚠️ [CAMPAIGN] Message limit exceeded, pausing campaign`, {
+          campaignId: campaign.id,
+          reason: canSend.reason
+        });
+
+        // Pausar campanha automaticamente quando limite é atingido
+        await prisma.campaign.update({
+          where: { id: campaign.id },
+          data: { 
+            status: 'PAUSED',
+            pausedAt: new Date()
+          }
+        });
+
+        // Marcar mensagem como falhada com motivo específico
+        await prisma.campaignMessage.update({
+          where: { id: messageId },
+          data: {
+            status: 'FAILED',
+            failedAt: new Date(),
+            error: `Limite de mensagens atingido: ${canSend.reason}`
+          }
+        });
+
+        this.emit('campaign:paused', { campaignId: campaign.id, reason: canSend.reason });
+        return;
+      }
+    } catch (error) {
+      campaignLogger.error(`Erro ao verificar limites para mensagem ${messageId}`, error);
+      // Em caso de erro ao verificar limites, não enviar mensagem por segurança
+      await prisma.campaignMessage.update({
+        where: { id: messageId },
+        data: {
+          status: 'FAILED',
+          failedAt: new Date(),
+          error: 'Erro ao verificar limites de mensagens'
+        }
+      });
+      return;
+    }
+
     try {
       // Render message with variables
       let finalMessage = message.message;
@@ -552,81 +602,97 @@ export class CampaignService extends EventEmitter {
         }
       });
 
+      // 📊 Incrementar contador de mensagens do usuário
+      try {
+        await PlansService.incrementMessageCount(campaign.userId, 1);
+        campaignLogger.log(`📊 [CAMPAIGN] Message count incremented for user`, { 
+          userId: campaign.userId 
+        });
+      } catch (error) {
+        campaignLogger.error(`Erro ao incrementar contador de mensagens`, error);
+        // Não falhar se não conseguir incrementar contador (mensagem já foi enviada)
+      }
+
       this.emit('message:sent', { messageId, campaignId: campaign.id });
 
     } catch (error) {
       campaignLogger.error(`Erro ao enviar mensagem ${messageId}`, error);
 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      // Determine if error is temporary or permanent
-      const isPermanentError = this.isPermanentError(errorMessage);
-      const currentMessage = await prisma.campaignMessage.findUnique({
-        where: { id: messageId },
-        select: { retryCount: true, maxRetries: true }
-      });
-
-      const shouldRetry = !isPermanentError && 
-                         currentMessage && 
-                         currentMessage.retryCount < currentMessage.maxRetries;
-
-      if (shouldRetry) {
-        // Calculate backoff delay (exponential: 2^retryCount minutes)
-        const backoffMinutes = Math.pow(2, currentMessage.retryCount);
-        const nextRetryAt = new Date(Date.now() + backoffMinutes * 60 * 1000);
-
-        campaignLogger.log(`🔄 [CAMPAIGN] Agendando retry para mensagem ${messageId}`, {
-          retryCount: currentMessage.retryCount + 1,
-          maxRetries: currentMessage.maxRetries,
-          nextRetryAt: nextRetryAt.toISOString(),
-          backoffMinutes
-        });
-
-        // Update message status to pending with retry info
-        await prisma.campaignMessage.update({
-          where: { id: messageId },
-          data: {
-            status: 'PENDING', // Keep as pending for retry
-            error: errorMessage,
-            retryCount: { increment: 1 },
-            lastRetryAt: new Date()
-          }
-        });
-
-        // Don't increment failed count, it will be retried
+      try {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         
-      } else {
-        // Permanent failure or max retries exceeded
-        const failReason = isPermanentError 
-          ? `Erro permanente: ${errorMessage}`
-          : `Máximo de tentativas excedido (${currentMessage?.maxRetries}): ${errorMessage}`;
-
-        campaignLogger.error(`❌ [CAMPAIGN] Falha permanente para mensagem ${messageId}`, {
-          reason: failReason,
-          isPermanentError,
-          retryCount: currentMessage?.retryCount
-        });
-
-        await prisma.campaignMessage.update({
+        // Determine if error is temporary or permanent
+        const isPermanentError = this.isPermanentError(errorMessage);
+        const currentMessage = await prisma.campaignMessage.findUnique({
           where: { id: messageId },
-          data: {
-            status: 'FAILED',
-            failedAt: new Date(),
-            error: failReason,
-            retryCount: { increment: 1 }
-          }
+          select: { retryCount: true, maxRetries: true }
         });
 
-        // Update campaign counters
-        await prisma.campaign.update({
-          where: { id: campaign.id },
-          data: {
-            failedCount: { increment: 1 },
-            pendingCount: { decrement: 1 }
-          }
-        });
+        const shouldRetry = !isPermanentError && 
+                           currentMessage && 
+                           currentMessage.retryCount < currentMessage.maxRetries;
 
-        this.emit('message:failed', { messageId, campaignId: campaign.id, error });
+        if (shouldRetry) {
+          // Calculate backoff delay (exponential: 2^retryCount minutes)
+          const backoffMinutes = Math.pow(2, currentMessage.retryCount);
+          const nextRetryAt = new Date(Date.now() + backoffMinutes * 60 * 1000);
+
+          campaignLogger.log(`🔄 [CAMPAIGN] Agendando retry para mensagem ${messageId}`, {
+            retryCount: currentMessage.retryCount + 1,
+            maxRetries: currentMessage.maxRetries,
+            nextRetryAt: nextRetryAt.toISOString(),
+            backoffMinutes
+          });
+
+          // Update message status to pending with retry info
+          await prisma.campaignMessage.update({
+            where: { id: messageId },
+            data: {
+              status: 'PENDING', // Keep as pending for retry
+              error: errorMessage,
+              retryCount: { increment: 1 },
+              lastRetryAt: new Date()
+            }
+          });
+
+          // Don't increment failed count, it will be retried
+          
+        } else {
+          // Permanent failure or max retries exceeded
+          const failReason = isPermanentError 
+            ? `Erro permanente: ${errorMessage}`
+            : `Máximo de tentativas excedido (${currentMessage?.maxRetries}): ${errorMessage}`;
+
+          campaignLogger.error(`❌ [CAMPAIGN] Falha permanente para mensagem ${messageId}`, {
+            reason: failReason,
+            isPermanentError,
+            retryCount: currentMessage?.retryCount
+          });
+
+          await prisma.campaignMessage.update({
+            where: { id: messageId },
+            data: {
+              status: 'FAILED',
+              failedAt: new Date(),
+              error: failReason,
+              retryCount: { increment: 1 }
+            }
+          });
+
+          // Update campaign counters
+          await prisma.campaign.update({
+            where: { id: campaign.id },
+            data: {
+              failedCount: { increment: 1 },
+              pendingCount: { decrement: 1 }
+            }
+          });
+
+          this.emit('message:failed', { messageId, campaignId: campaign.id, error });
+        }
+      } catch (dbError) {
+        campaignLogger.error(`❌ [CAMPAIGN] Erro ao atualizar status da mensagem ${messageId} no banco`, dbError);
+        // Continue processing other messages even if this one failed to update
       }
     }
   }

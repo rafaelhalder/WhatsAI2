@@ -1,4 +1,4 @@
-import { PlanType, PlanConfig, UsageResponse, CheckActionRequest } from '../types/plans';
+import { PlanType, PlanConfig, PlanLimits, UsageResponse, CheckActionRequest } from '../types/plans';
 
 class PlansService {
   private baseUrl = '/api/plans';
@@ -25,7 +25,7 @@ class PlansService {
   /**
    * Get current user's plan
    */
-  async getCurrentPlan(token: string): Promise<{ plan: PlanType; config: PlanConfig }> {
+  async getCurrentPlan(token: string): Promise<{ plan: PlanType; limits: PlanLimits; config: PlanConfig }> {
     const response = await fetch(`${this.baseUrl}/current`, {
       headers: {
         'Authorization': `Bearer ${token}`,

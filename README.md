@@ -249,7 +249,16 @@ JWT_EXPIRES_IN=7d
 # Default Admin User
 DEFAULT_ADMIN_EMAIL=admin@whatsai.com
 DEFAULT_ADMIN_PASSWORD=admin123
+
+# OpenAI/GPT Configuration (for AI Chatbot)
+# Get your API key from https://platform.openai.com/api-keys
+OPENAI_API_KEY=sk-your-openai-api-key-here
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_MAX_TOKENS=500
+OPENAI_TEMPERATURE=0.7
 ```
+
+📖 **See [GPT-INTEGRATION-GUIDE.md](GPT-INTEGRATION-GUIDE.md) for detailed GPT/AI configuration**
 
 ### Evolution API Setup
 
@@ -939,6 +948,30 @@ See [MVP-ROADMAP.md](MVP-ROADMAP.md) for detailed implementation plan.
 - [ ] Advanced user roles and permissions
 - [ ] API rate limiting and monitoring
 - [ ] Database backup and restore
+
+---
+
+## 📚 Documentation
+
+### Active Documentation
+- [MVP Roadmap](MVP-ROADMAP.md) - Product roadmap and planning
+- [MVP Validation Checklist](MVP-VALIDATION-CHECKLIST.md) - Launch readiness checklist
+- [Configuration Guide](CONFIGURATION.md) - Production configuration
+- [Deployment Guide](DEPLOY-PRODUCAO.md) - Deployment instructions
+- [CI/CD Setup](CI-CD-SETUP.md) - Continuous integration setup
+- [Ngrok Setup](NGROK-SETUP.md) - Local development tunneling
+- [Tested Commands](COMANDOS-TESTADOS.md) - Verified command reference
+- [GPT Integration](GPT-INTEGRATION-GUIDE.md) - AI/OpenAI integration
+- [STARTER Plan Guide](STARTER-PLAN-GUIDE.md) - STARTER plan details
+- [Plans & Pricing](PLANOS-E-PRECOS.md) - Pricing information
+
+### Technical Documentation
+- [Code Review & Recommendations](docs/CODE-REVIEW-RECOMMENDATIONS.md) - Comprehensive code analysis
+- [Architecture Documentation](docs/architecture/) - System architecture and flows
+- [Feature Documentation](docs/features/) - Feature-specific guides
+
+### Historical Documentation
+See [docs/archive/](docs/archive/) for historical analysis, validation, and implementation documents.
 
 ---
 

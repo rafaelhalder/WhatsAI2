@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, X, Zap, Crown, Star, ArrowRight } from 'lucide-react';
+import { Check, X, Zap, Crown, Star, ArrowRight, Rocket } from 'lucide-react';
 import { plansService } from '../services/plansService';
 import { PlanConfig, PlanType, UsageResponse } from '../types/plans';
 import { userAuthStore } from '../../auth/store/authStore';
@@ -67,15 +67,16 @@ export const PlansPage: React.FC = () => {
   };
 
   const getPlanOrder = (plan: PlanType): number => {
-    const order = { FREE: 1, PRO: 2, ENTERPRISE: 3 };
+    const order = { FREE: 1, STARTER: 2, PRO: 3, BUSINESS: 4 };
     return order[plan];
   };
 
   const getPlanIcon = (planType: PlanType) => {
     const icons = {
       FREE: Star,
+      STARTER: Rocket,
       PRO: Zap,
-      ENTERPRISE: Crown
+      BUSINESS: Crown
     };
     return icons[planType];
   };
@@ -104,30 +105,30 @@ export const PlansPage: React.FC = () => {
         </div>
 
         {/* Current Usage */}
-        {usage && usage.instances && usage.messages_today && usage.templates && (
+        {usage && usage.usage && (
           <div className="bg-base-100 rounded-xl p-6 shadow-lg">
             <h2 className="text-xl font-bold mb-4">Uso Atual</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <UsageBar
                 label="Instâncias"
-                current={usage.instances.current}
-                limit={usage.instances.limit}
+                current={usage.usage.instances.current}
+                limit={usage.usage.instances.limit}
               />
               <UsageBar
                 label="Mensagens Hoje"
-                current={usage.messages_today.current}
-                limit={usage.messages_today.limit}
+                current={usage.usage.messages_today.current}
+                limit={usage.usage.messages_today.limit}
               />
               <UsageBar
                 label="Templates"
-                current={usage.templates.current}
-                limit={usage.templates.limit}
+                current={usage.usage.templates.current}
+                limit={usage.usage.templates.limit}
               />
-              {usage.campaigns && (
+              {usage.usage.campaigns_this_month && (
                 <UsageBar
                   label="Campanhas"
-                  current={usage.campaigns.current}
-                  limit={usage.campaigns.limit}
+                  current={usage.usage.campaigns_this_month.current}
+                  limit={usage.usage.campaigns_this_month.limit}
                 />
               )}
             </div>
@@ -142,7 +143,7 @@ export const PlansPage: React.FC = () => {
         )}
 
         {/* Plans Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plans.map((plan) => {
             const Icon = getPlanIcon(plan.name);
             const isCurrent = plan.name === currentPlan;
@@ -158,11 +159,11 @@ export const PlansPage: React.FC = () => {
                   border-2 transition-all flex flex-col
                   ${isCurrent ? 'border-primary' : 'border-transparent'}
                   ${plan.popular ? 'ring-2 ring-warning' : ''}
-                  ${plan.name === 'ENTERPRISE' ? 'ring-4 ring-secondary shadow-2xl' : ''}
+                  ${plan.name === 'BUSINESS' ? 'ring-4 ring-secondary shadow-2xl' : ''}
                 `}
               >
                 {/* Plan Header */}
-                <div className={`p-6 text-center ${plan.name === 'ENTERPRISE' ? 'bg-gradient-to-br from-secondary to-accent text-secondary-content' : plan.color}`}>
+                <div className={`p-6 text-center ${plan.name === 'BUSINESS' ? 'bg-gradient-to-br from-secondary to-accent text-secondary-content' : plan.color}`}>
                   <Icon className="w-12 h-12 mx-auto mb-3" />
                   <h3 className="text-2xl font-bold mb-2">{plan.displayName}</h3>
                   <div className="flex items-baseline justify-center gap-1">
@@ -177,7 +178,7 @@ export const PlansPage: React.FC = () => {
                       <span className="badge badge-warning">Mais Popular</span>
                     </div>
                   )}
-                  {plan.name === 'ENTERPRISE' && (
+                  {plan.name === 'BUSINESS' && (
                     <div className="mt-3">
                       <span className="badge badge-accent">Premium ✨</span>
                     </div>

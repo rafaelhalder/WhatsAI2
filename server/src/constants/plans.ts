@@ -5,8 +5,9 @@
 
 export enum PlanType {
   FREE = 'FREE',
+  STARTER = 'STARTER',
   PRO = 'PRO',
-  ENTERPRISE = 'ENTERPRISE',
+  BUSINESS = 'BUSINESS',
 }
 
 export interface PlanLimits {
@@ -67,6 +68,40 @@ export const PLANS: Record<PlanType, PlanConfig> = {
     },
   },
 
+  [PlanType.STARTER]: {
+    name: 'STARTER',
+    displayName: 'Starter',
+    description: 'Ideal para pequenos negócios',
+    price: 4700, // R$ 47.00
+    priceFormatted: 'R$ 47',
+    currency: 'BRL',
+    billingPeriod: 'monthly',
+    features: [
+      '2 instâncias WhatsApp',
+      '1.000 mensagens por dia',
+      '20 templates de mensagem',
+      '✅ Envio em massa (5 campanhas/mês)',
+      '2 membros na equipe',
+      '5GB de armazenamento',
+      'Respostas automáticas básicas',
+      'Dashboard completo',
+      'Suporte por email (48h)',
+    ],
+    limits: {
+      instances: 2,
+      messages_per_day: 1000,
+      broadcasts: true,
+      broadcasts_per_month: 5,
+      templates: 20,
+      team_members: 2,
+      storage_gb: 5,
+      api_access: false,
+      priority_support: false,
+      custom_domain: false,
+      whitelabel: false,
+    },
+  },
+
   [PlanType.PRO]: {
     name: 'PRO',
     displayName: 'Profissional',
@@ -103,12 +138,12 @@ export const PLANS: Record<PlanType, PlanConfig> = {
     },
   },
 
-  [PlanType.ENTERPRISE]: {
-    name: 'ENTERPRISE',
-    displayName: 'Enterprise',
-    description: 'Solução completa para grandes empresas',
-    price: 49700, // R$ 497.00
-    priceFormatted: 'R$ 497',
+  [PlanType.BUSINESS]: {
+    name: 'BUSINESS',
+    displayName: 'Business',
+    description: 'Solução completa para empresas em crescimento',
+    price: 29700, // R$ 297.00
+    priceFormatted: 'R$ 297',
     currency: 'BRL',
     billingPeriod: 'monthly',
     features: [
@@ -183,14 +218,14 @@ export const isValidPlan = (plan: string): plan is PlanType => {
 };
 
 export const canUpgradeToPlan = (currentPlan: PlanType, targetPlan: PlanType): boolean => {
-  const planOrder = [PlanType.FREE, PlanType.PRO, PlanType.ENTERPRISE];
+  const planOrder = [PlanType.FREE, PlanType.STARTER, PlanType.PRO, PlanType.BUSINESS];
   const currentIndex = planOrder.indexOf(currentPlan);
   const targetIndex = planOrder.indexOf(targetPlan);
   return targetIndex > currentIndex;
 };
 
 export const canDowngradeToPlan = (currentPlan: PlanType, targetPlan: PlanType): boolean => {
-  const planOrder = [PlanType.FREE, PlanType.PRO, PlanType.ENTERPRISE];
+  const planOrder = [PlanType.FREE, PlanType.STARTER, PlanType.PRO, PlanType.BUSINESS];
   const currentIndex = planOrder.indexOf(currentPlan);
   const targetIndex = planOrder.indexOf(targetPlan);
   return targetIndex < currentIndex;

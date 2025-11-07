@@ -15,6 +15,10 @@ export interface UserSettings {
   appearance: {
     theme: 'light' | 'dark' | 'auto';
   };
+  privacy?: {
+    showOnlineStatus: boolean;
+    allowDataCollection: boolean;
+  };
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -29,6 +33,10 @@ export const DEFAULT_SETTINGS: UserSettings = {
   },
   appearance: {
     theme: 'light',
+  },
+  privacy: {
+    showOnlineStatus: true,
+    allowDataCollection: false,
   },
 };
 

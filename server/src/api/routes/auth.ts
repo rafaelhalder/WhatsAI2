@@ -39,4 +39,11 @@ router.put('/profile', authMiddleware, (req, res) => authController.updateProfil
  */
 router.post('/change-password', authMiddleware, (req, res) => authController.changePassword(req, res));
 
+/**
+ * DELETE /api/auth/delete-account
+ * Delete user account
+ * Protected route
+ */
+router.delete('/delete-account', authMiddleware, (req, res) => authController.deleteAccount(req, res));
+
 export { router as authRoutes };

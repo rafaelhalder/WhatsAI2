@@ -41,7 +41,7 @@ export default function InstancesPage() {
   // Auto-refresh baseado nas configurações do usuário
   useEffect(() => {
     // Se auto-refresh estiver desabilitado, não fazer nada
-    if (!token || !settings.autoRefresh.enabled) {
+    if (!token || !settings?.autoRefresh?.enabled) {
       console.log('🛑 [InstancesPage] Auto-refresh disabled by user settings');
       return;
     }
@@ -68,7 +68,7 @@ export default function InstancesPage() {
       console.log('🛑 [InstancesPage] Stopping auto-refresh');
       clearInterval(intervalId);
     };
-  }, [token, fetchInstancesSilent, settings.autoRefresh.enabled, settings.autoRefresh.interval]);
+  }, [token, fetchInstancesSilent, settings?.autoRefresh?.enabled, settings?.autoRefresh?.interval]);
 
   const handleCreateInstance = async (payload: CreateInstancePayload) => {
     if (!token) return;
@@ -180,7 +180,7 @@ export default function InstancesPage() {
             </h1>
             <p className="text-base-content/70 mt-2 flex items-center gap-2">
               Gerencie suas conexões WhatsApp
-              {settings.autoRefresh.enabled ? (
+              {settings?.autoRefresh?.enabled ? (
                 <span className="flex items-center gap-1 text-xs">
                   {isAutoRefreshing ? (
                     <>
@@ -194,7 +194,7 @@ export default function InstancesPage() {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span className="text-success">Auto-refresh: {settings.autoRefresh.interval}s</span>
+                      <span className="text-success">Auto-refresh: {settings?.autoRefresh?.interval}s</span>
                     </>
                   )}
                 </span>

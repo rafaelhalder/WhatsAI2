@@ -20,13 +20,17 @@ import {
 } from 'lucide-react';
 import { billingService, Subscription as SubscriptionType, Invoice, PLANS } from '../services/billing';
 import { userAuthStore } from '../features/auth/store/authStore';
+import { plansService } from '../features/plans/services/plansService';
+import { UsageResponse } from '../features/plans/types/plans';
 
 export default function Subscription() {
   const navigate = useNavigate();
   const user = userAuthStore((state) => state.user);
+  const token = userAuthStore((state) => state.token);
   const checkAuth = userAuthStore((state) => state.checkAuth);
   const [subscription, setSubscription] = useState<SubscriptionType | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [usage, setUsage] = useState<UsageResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,23 +47,28 @@ export default function Subscription() {
   }, [checkAuth]);
 
   const loadSubscriptionData = async () => {
+    if (!token) return;
+    
     try {
       setLoading(true);
       setError(null);
 
-      const [subData, invoiceData] = await Promise.all([
+      const [subData, invoiceData, usageData] = await Promise.all([
         billingService.getSubscription(),
         billingService.getInvoices(),
+        plansService.getUsage(token),
       ]);
 
       console.log('🔍 [SUBSCRIPTION PAGE] Dados recebidos:', {
         subscription: subData,
         cancelAtPeriodEnd: subData?.cancelAtPeriodEnd,
-        status: subData?.status
+        status: subData?.status,
+        usage: usageData
       });
 
       setSubscription(subData);
       setInvoices(invoiceData || []);
+      setUsage(usageData);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
       setError('Não foi possível carregar os dados da assinatura');
@@ -333,6 +342,62 @@ export default function Subscription() {
               </p>
             </div>
           </div>
+          
+          {/* Usage Statistics */}
+          {user && (
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-4 mb-6">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Uso Atual
+              </h3>
+              <div className="space-y-3">
+                {/* Messages Usage */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs text-gray-600 dark:text-gray-300">Mensagens Hoje</span>
+                    <span className="text-xs font-medium text-gray-900 dark:text-white">
+                      {usage ? (
+                        usage.limits.messages_per_day === -1 
+                          ? `${usage.usage.messages_today.current} / ∞`
+                          : `${usage.usage.messages_today.current} / ${usage.limits.messages_per_day}`
+                      ) : '0 / 0'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all ${(() => {
+                        if (!usage || usage.limits.messages_per_day === -1) return 'bg-green-600';
+                        const percentage = (usage.usage.messages_today.current / usage.limits.messages_per_day) * 100;
+                        return percentage > 90 
+                          ? 'bg-red-600' 
+                          : percentage > 70
+                          ? 'bg-yellow-600'
+                          : 'bg-green-600';
+                      })()}`}
+                      style={{ 
+                        width: `${(() => {
+                          if (!usage || usage.limits.messages_per_day === -1) return 0;
+                          return Math.min(100, (usage.usage.messages_today.current / usage.limits.messages_per_day) * 100);
+                        })()}%` 
+                      }}
+                    ></div>
+                  </div>
+                  {(() => {
+                    if (!usage || usage.limits.messages_per_day === -1) return null;
+                    const percentage = (usage.usage.messages_today.current / usage.limits.messages_per_day) * 100;
+                    if (percentage > 80) {
+                      return (
+                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                          ⚠️ Você está próximo do limite diário
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Subscription Details */}
           {subscription && (
@@ -426,8 +491,8 @@ export default function Subscription() {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
               Mudar de Plano
             </h2>
-            <div className="grid md:grid-cols-3 gap-4">
-              {PLANS.filter(p => p.id !== 'free').map((plan) => {
+            <div className="grid md:grid-cols-4 gap-4">
+              {PLANS.map((plan) => {
                 const isUpgrade = plan.price > currentPlan.price;
                 return (
                   <div
@@ -449,6 +514,15 @@ export default function Subscription() {
                       <div className="text-center py-2 text-sm font-medium text-blue-600">
                         Plano Atual
                       </div>
+                    ) : plan.id === 'free' ? (
+                      <button
+                        onClick={handleCancelSubscription}
+                        disabled={actionLoading}
+                        className="w-full py-2 rounded-lg font-medium transition-colors bg-red-600 hover:bg-red-700 text-white flex items-center justify-center"
+                      >
+                        <XCircle className="w-4 h-4 mr-1" />
+                        Cancelar Assinatura
+                      </button>
                     ) : (
                       <button
                         onClick={() => handleChangePlan(plan.priceId)}

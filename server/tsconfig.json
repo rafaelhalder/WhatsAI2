@@ -38,14 +38,14 @@
   },
   "include": [
     "src/**/*",
-    "tests/**/*",
-    "scripts/**/*"
+    "tests/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "scripts/**/*"
   ],
   "ts-node": {
     "require": ["tsconfig-paths/register"]

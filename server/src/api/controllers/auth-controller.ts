@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { authService } from '@/services/auth-service';
 import { z } from 'zod';
+import { deleteAccount } from './auth/delete-account';
 
 // Validation schemas
 const registerSchema = z.object({
@@ -302,6 +303,14 @@ export class AuthController {
         message: 'Internal server error'
       });
     }
+  }
+  
+  /**
+   * DELETE /api/auth/delete-account
+   * Delete user account
+   */
+  async deleteAccount(req: Request, res: Response): Promise<void> {
+    return deleteAccount(req, res);
   }
 }
 

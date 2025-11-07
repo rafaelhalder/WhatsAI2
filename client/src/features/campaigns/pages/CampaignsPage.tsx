@@ -131,8 +131,8 @@ export const CampaignsPage: React.FC = () => {
         plansService.getUsage(token)
       ]);
       setCurrentPlan(planData.plan);
-      setCurrentUsage(usageData.campaigns?.current ?? 0);
-      setLimit(usageData.campaigns?.limit ?? -1);
+      setCurrentUsage(usageData.usage.campaigns_this_month?.current ?? 0);
+      setLimit(usageData.usage.campaigns_this_month?.limit ?? -1);
     } catch (error) {
       console.error('Error loading plan info:', error);
     }

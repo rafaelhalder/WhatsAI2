@@ -14,7 +14,15 @@ router.use(authMiddleware);
  */
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Não autenticado',
+      });
+    }
+
     const autoResponse = await autoResponseService.createAutoResponse(
       userId,
       req.body
@@ -34,14 +42,102 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * @route   GET /api/auto-responses/detail/:id
+ * @desc    Obter auto-resposta específica
+ * @access  Private
+ */
+router.get('/detail/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Não autenticado',
+      });
+    }
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Auto-response ID is required',
+      });
+    }
+
+    const autoResponse = await autoResponseService.getAutoResponse(userId, id);
+
+    return res.json({
+      success: true,
+      data: autoResponse,
+    });
+  } catch (error: any) {
+    console.error('[AUTO_RESPONSES] Get error:', error);
+    return res.status(404).json({
+      success: false,
+      message: error.message || 'Auto-response not found',
+    });
+  }
+});
+
+/**
+ * @route   GET /api/auto-responses/stats/:instanceId
+ * @desc    Obter estatísticas de automação
+ * @access  Private
+ */
+router.get('/stats/:instanceId', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    const { instanceId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Não autenticado',
+      });
+    }
+
+    if (!instanceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Instance ID is required',
+      });
+    }
+
+    const stats = await autoResponseService.getAutomationStats(
+      userId,
+      instanceId
+    );
+
+    return res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error: any) {
+    console.error('[AUTO_RESPONSES] Stats error:', error);
+    return res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to get automation stats',
+    });
+  }
+});
+
+/**
  * @route   GET /api/auto-responses/:instanceId
  * @desc    Listar auto-respostas de uma instância
  * @access  Private
  */
 router.get('/:instanceId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
     const { instanceId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Não autenticado',
+      });
+    }
 
     if (!instanceId) {
       return res.status(400).json({
@@ -69,46 +165,21 @@ router.get('/:instanceId', async (req: Request, res: Response) => {
 });
 
 /**
- * @route   GET /api/auto-responses/detail/:id
- * @desc    Obter auto-resposta específica
- * @access  Private
- */
-router.get('/detail/:id', async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.userId;
-    const { id } = req.params;
-
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Auto-response ID is required',
-      });
-    }
-
-    const autoResponse = await autoResponseService.getAutoResponse(userId, id);
-
-    return res.json({
-      success: true,
-      data: autoResponse,
-    });
-  } catch (error: any) {
-    console.error('[AUTO_RESPONSES] Get error:', error);
-    return res.status(404).json({
-      success: false,
-      message: error.message || 'Auto-response not found',
-    });
-  }
-});
-
-/**
  * @route   PUT /api/auto-responses/:id
  * @desc    Atualizar auto-resposta
  * @access  Private
  */
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
     const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Não autenticado',
+      });
+    }
 
     if (!id) {
       return res.status(400).json({
@@ -143,8 +214,15 @@ router.put('/:id', async (req: Request, res: Response) => {
  */
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
     const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Não autenticado',
+      });
+    }
 
     if (!id) {
       return res.status(400).json({
@@ -175,8 +253,15 @@ router.delete('/:id', async (req: Request, res: Response) => {
  */
 router.post('/:id/toggle', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
     const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Não autenticado',
+      });
+    }
 
     if (!id) {
       return res.status(400).json({
@@ -199,41 +284,6 @@ router.post('/:id/toggle', async (req: Request, res: Response) => {
     return res.status(400).json({
       success: false,
       message: error.message || 'Failed to toggle auto-response',
-    });
-  }
-});
-
-/**
- * @route   GET /api/auto-responses/stats/:instanceId
- * @desc    Obter estatísticas de automação
- * @access  Private
- */
-router.get('/stats/:instanceId', async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.userId;
-    const { instanceId } = req.params;
-
-    if (!instanceId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Instance ID is required',
-      });
-    }
-
-    const stats = await autoResponseService.getAutomationStats(
-      userId,
-      instanceId
-    );
-
-    return res.json({
-      success: true,
-      data: stats,
-    });
-  } catch (error: any) {
-    console.error('[AUTO_RESPONSES] Stats error:', error);
-    return res.status(400).json({
-      success: false,
-      message: error.message || 'Failed to get automation stats',
     });
   }
 });
