@@ -36,8 +36,8 @@ export const PlanBadge: React.FC<PlanBadgeProps> = ({
     BUSINESS: {
       label: 'Business',
       icon: Crown,
-      colorClasses: 'bg-gradient-to-r from-warning to-error text-white',
-      iconColor: 'text-white'
+      colorClasses: 'bg-gradient-to-r from-warning to-error text-base-100',
+      iconColor: 'text-base-100'
     }
   };
 

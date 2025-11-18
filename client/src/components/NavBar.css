@@ -47,7 +47,7 @@
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(16, 109, 185, 0.4) 0%, rgba(16, 109, 185, 0) 70%);
+  background: radial-gradient(circle, hsl(var(--p) / 0.4) 0%, hsl(var(--p) / 0) 70%);
   filter: blur(25px);
   opacity: 0.5;
   left: -40px;
@@ -56,30 +56,18 @@
   animation: float-nav 8s ease-in-out infinite;
 }
 
-/* Dark mode variant for view-glow-1 */
-.dark .view-glow-1 {
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, rgba(6, 182, 212, 0) 70%);
-  opacity: 0.4;
-}
-
 .view-glow-2 {
   position: absolute;
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(5, 104, 150, 0.3) 0%, rgba(5, 104, 150, 0) 70%);
+  background: radial-gradient(circle, hsl(var(--p) / 0.3) 0%, hsl(var(--p) / 0) 70%);
   filter: blur(20px);
   opacity: 0.6;
   right: -20px;
   bottom: -30px;
   z-index: 1;
   animation: float-nav 12s ease-in-out infinite reverse;
-}
-
-/* Dark mode variant for view-glow-2 */
-.dark .view-glow-2 {
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.25) 0%, rgba(6, 182, 212, 0) 70%);
-  opacity: 0.5;
 }
 
   @keyframes float-nav {

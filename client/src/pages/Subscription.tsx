@@ -217,18 +217,18 @@ export default function Subscription() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      active: { icon: CheckCircle, color: 'text-green-600 bg-green-100 dark:bg-green-900 dark:text-green-300', label: 'Ativo' },
-      trialing: { icon: Calendar, color: 'text-blue-600 bg-blue-100 dark:bg-blue-900 dark:text-blue-300', label: 'Período de Teste' },
-      canceled: { icon: XCircle, color: 'text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-300', label: 'Cancelado' },
-      past_due: { icon: AlertCircle, color: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-300', label: 'Pagamento Pendente' },
+      active: { icon: CheckCircle, color: 'badge-success', label: 'Ativo' },
+      trialing: { icon: Calendar, color: 'badge-info', label: 'Período de Teste' },
+      canceled: { icon: XCircle, color: 'badge-error', label: 'Cancelado' },
+      past_due: { icon: AlertCircle, color: 'badge-warning', label: 'Pagamento Pendente' },
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.active;
     const Icon = config.icon;
 
     return (
-      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${config.color}`}>
-        <Icon className="w-4 h-4 mr-1" />
+      <span className={`badge ${config.color} gap-1`}>
+        <Icon className="w-4 h-4" />
         {config.label}
       </span>
     );
@@ -236,16 +236,16 @@ export default function Subscription() {
 
   const getInvoiceStatusBadge = (status: string) => {
     const statusConfig = {
-      paid: { color: 'text-green-600 bg-green-100 dark:bg-green-900 dark:text-green-300', label: 'Pago' },
-      open: { color: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-300', label: 'Pendente' },
-      void: { color: 'text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300', label: 'Cancelado' },
-      uncollectible: { color: 'text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-300', label: 'Não Coletável' },
+      paid: { color: 'badge-success', label: 'Pago' },
+      open: { color: 'badge-warning', label: 'Pendente' },
+      void: { color: 'badge-neutral', label: 'Cancelado' },
+      uncollectible: { color: 'badge-error', label: 'Não Coletável' },
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.open;
 
     return (
-      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${config.color}`}>
+      <span className={`badge ${config.color} badge-sm`}>
         {config.label}
       </span>
     );
@@ -256,7 +256,7 @@ export default function Subscription() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -265,12 +265,12 @@ export default function Subscription() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Erro ao Carregar</h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-4">{error}</p>
+          <AlertCircle className="w-16 h-16 text-error mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-base-content mb-2">Erro ao Carregar</h2>
+          <p className="text-base-content/70 mb-4">{error}</p>
           <button
             onClick={loadSubscriptionData}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+            className="btn btn-primary"
           >
             Tentar Novamente
           </button>
@@ -280,82 +280,83 @@ export default function Subscription() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-base-200 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-base-content mb-2">
             Minha Assinatura
           </h1>
-          <p className="text-gray-600 dark:text-gray-300">
+          <p className="text-base-content/70">
             Gerencie sua assinatura e histórico de pagamentos
           </p>
         </div>
 
         {/* Current Plan Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                Plano {currentPlan.name}
-              </h2>
-              <p className="text-gray-600 dark:text-gray-300">
-                {currentPlan.price === 0 ? 'Sem cobrança' : `R$ ${currentPlan.price}/mês`}
-              </p>
-            </div>
-            {subscription && (
-              <div className="mt-4 md:mt-0">
-                {getStatusBadge(subscription.status)}
+        <div className="card bg-base-100 shadow-lg mb-8">
+          <div className="card-body">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+              <div>
+                <h2 className="card-title text-2xl mb-2">
+                  Plano {currentPlan.name}
+                </h2>
+                <p className="text-base-content/70">
+                  {currentPlan.price === 0 ? 'Sem cobrança' : `R$ ${currentPlan.price}/mês`}
+                </p>
               </div>
-            )}
-          </div>
-
-          {/* Plan Features */}
-          <div className="grid md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-              <div className="flex items-center mb-2">
-                <TrendingUp className="w-5 h-5 text-blue-600 mr-2" />
-                <h3 className="font-semibold text-gray-900 dark:text-white">Instâncias</h3>
-              </div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {currentPlan.features.find(f => f.includes('instância'))?.match(/\d+/)?.[0] || '0'}
-              </p>
+              {subscription && (
+                <div className="mt-4 md:mt-0">
+                  {getStatusBadge(subscription.status)}
+                </div>
+              )}
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-              <div className="flex items-center mb-2">
-                <CreditCard className="w-5 h-5 text-green-600 mr-2" />
-                <h3 className="font-semibold text-gray-900 dark:text-white">Mensagens/Mês</h3>
+            {/* Plan Features */}
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-base-200 rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <TrendingUp className="w-5 h-5 text-primary mr-2" />
+                  <h3 className="font-semibold text-base-content">Instâncias</h3>
+                </div>
+                <p className="text-2xl font-bold text-base-content">
+                  {currentPlan.features.find(f => f.includes('instância'))?.match(/\d+/)?.[0] || '0'}
+                </p>
               </div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {currentPlan.features.find(f => f.includes('mensagens'))?.match(/[\d.]+k?/)?.[0] || '0'}
-              </p>
-            </div>
 
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-              <div className="flex items-center mb-2">
-                <Calendar className="w-5 h-5 text-purple-600 mr-2" />
-                <h3 className="font-semibold text-gray-900 dark:text-white">Contatos</h3>
+              <div className="bg-base-200 rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <CreditCard className="w-5 h-5 text-success mr-2" />
+                  <h3 className="font-semibold text-base-content">Mensagens/Mês</h3>
+                </div>
+                <p className="text-2xl font-bold text-base-content">
+                  {currentPlan.features.find(f => f.includes('mensagens'))?.match(/[\d.]+k?/)?.[0] || '0'}
+                </p>
               </div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {currentPlan.features.find(f => f.includes('contatos'))?.match(/[\d.]+k?/)?.[0] || '0'}
-              </p>
+
+              <div className="bg-base-200 rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <Calendar className="w-5 h-5 text-secondary mr-2" />
+                  <h3 className="font-semibold text-base-content">Contatos</h3>
+                </div>
+                <p className="text-2xl font-bold text-base-content">
+                  {currentPlan.features.find(f => f.includes('contatos'))?.match(/[\d.]+k?/)?.[0] || '0'}
+                </p>
+              </div>
             </div>
-          </div>
-          
-          {/* Usage Statistics */}
-          {user && (
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-4 mb-6">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
+            
+            {/* Usage Statistics */}
+            {user && (
+              <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg p-4 mb-6">
+                <h3 className="text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" />
                 Uso Atual
               </h3>
               <div className="space-y-3">
                 {/* Messages Usage */}
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs text-gray-600 dark:text-gray-300">Mensagens Hoje</span>
-                    <span className="text-xs font-medium text-gray-900 dark:text-white">
+                    <span className="text-xs text-base-content/70">Mensagens Hoje</span>
+                    <span className="text-xs font-medium text-base-content">
                       {usage ? (
                         usage.limits.messages_per_day === -1 
                           ? `${usage.usage.messages_today.current} / ∞`
@@ -363,16 +364,16 @@ export default function Subscription() {
                       ) : '0 / 0'}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div className="w-full bg-base-300 rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full transition-all ${(() => {
-                        if (!usage || usage.limits.messages_per_day === -1) return 'bg-green-600';
+                        if (!usage || usage.limits.messages_per_day === -1) return 'bg-success';
                         const percentage = (usage.usage.messages_today.current / usage.limits.messages_per_day) * 100;
                         return percentage > 90 
-                          ? 'bg-red-600' 
+                          ? 'bg-error' 
                           : percentage > 70
-                          ? 'bg-yellow-600'
-                          : 'bg-green-600';
+                          ? 'bg-warning'
+                          : 'bg-success';
                       })()}`}
                       style={{ 
                         width: `${(() => {
@@ -387,7 +388,7 @@ export default function Subscription() {
                     const percentage = (usage.usage.messages_today.current / usage.limits.messages_per_day) * 100;
                     if (percentage > 80) {
                       return (
-                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                        <p className="text-xs text-warning mt-1">
                           ⚠️ Você está próximo do limite diário
                         </p>
                       );
@@ -401,22 +402,22 @@ export default function Subscription() {
 
           {/* Subscription Details */}
           {subscription && (
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+            <div className="border-t border-base-300 pt-6">
               <div className="grid md:grid-cols-2 gap-4 mb-6">
                 {subscription.trialEnd && new Date(subscription.trialEnd) > new Date() && (
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Teste grátis até</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
+                    <p className="text-sm text-base-content/60 mb-1">Teste grátis até</p>
+                    <p className="font-semibold text-base-content">
                       {formatDate(subscription.trialEnd)}
                     </p>
                   </div>
                 )}
                 {subscription.currentPeriodEnd && (
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    <p className="text-sm text-base-content/60 mb-1">
                       {subscription.cancelAtPeriodEnd ? 'Acesso até' : 'Próxima cobrança'}
                     </p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
+                    <p className="font-semibold text-base-content">
                       {formatDate(subscription.currentPeriodEnd)}
                     </p>
                   </div>
@@ -429,7 +430,7 @@ export default function Subscription() {
                   <button
                     onClick={handleCancelSubscription}
                     disabled={actionLoading}
-                    className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                    className="btn btn-error"
                   >
                     {actionLoading ? 'Processando...' : 'Cancelar Assinatura'}
                   </button>
@@ -439,7 +440,7 @@ export default function Subscription() {
                   <button
                     onClick={handleReactivateSubscription}
                     disabled={actionLoading}
-                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                    className="btn btn-success"
                   >
                     {actionLoading ? 'Processando...' : 'Reativar Assinatura'}
                   </button>
@@ -448,7 +449,7 @@ export default function Subscription() {
                 <button
                   onClick={handleManageBilling}
                   disabled={actionLoading}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center"
+                  className="btn btn-primary"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   {actionLoading ? 'Abrindo...' : 'Gerenciar Pagamento'}
@@ -457,7 +458,7 @@ export default function Subscription() {
                 {currentPlan.id === 'FREE' && (
                   <button
                     onClick={() => navigate('/pricing')}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                    className="btn btn-secondary"
                   >
                     Fazer Upgrade
                   </button>
@@ -468,159 +469,153 @@ export default function Subscription() {
 
           {/* Free Plan CTA */}
           {!subscription && currentPlan.id === 'FREE' && (
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900 dark:to-purple-900 rounded-lg p-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                Pronto para mais recursos?
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Faça upgrade e desbloqueie todo o potencial do WhatsAI
-              </p>
-              <button
-                onClick={() => navigate('/pricing')}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-              >
-                Ver Planos
-              </button>
+            <div className="alert alert-info">
+              <div>
+                <h3 className="text-lg font-bold mb-2">
+                  Pronto para mais recursos?
+                </h3>
+                <p className="mb-4">
+                  Faça upgrade e desbloqueie todo o potencial do WhatsAI
+                </p>
+                <button
+                  onClick={() => navigate('/pricing')}
+                  className="btn btn-primary"
+                >
+                  Ver Planos
+                </button>
+              </div>
             </div>
           )}
+          </div>
         </div>
 
         {/* Change Plan Section */}
         {subscription && currentPlan.id !== 'FREE' && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              Mudar de Plano
-            </h2>
-            <div className="grid md:grid-cols-4 gap-4">
-              {PLANS.map((plan) => {
-                const isUpgrade = plan.price > currentPlan.price;
-                return (
-                  <div
-                    key={plan.id}
-                    className={`border rounded-lg p-4 ${
-                      plan.id === currentPlan.id
-                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-900'
-                        : 'border-gray-200 dark:border-gray-700'
-                    }`}
-                  >
-                    <h3 className="font-bold text-gray-900 dark:text-white mb-2">
-                      {plan.name}
-                    </h3>
-                    <p className="text-2xl font-bold text-blue-600 mb-3">
-                      R$ {plan.price}
-                      <span className="text-sm text-gray-600 dark:text-gray-400">/mês</span>
-                    </p>
-                    {plan.id === currentPlan.id ? (
-                      <div className="text-center py-2 text-sm font-medium text-blue-600">
-                        Plano Atual
-                      </div>
-                    ) : plan.id === 'free' ? (
-                      <button
-                        onClick={handleCancelSubscription}
-                        disabled={actionLoading}
-                        className="w-full py-2 rounded-lg font-medium transition-colors bg-red-600 hover:bg-red-700 text-white flex items-center justify-center"
-                      >
-                        <XCircle className="w-4 h-4 mr-1" />
-                        Cancelar Assinatura
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleChangePlan(plan.priceId)}
-                        disabled={actionLoading}
-                        className={`w-full py-2 rounded-lg font-medium transition-colors ${
-                          isUpgrade
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center'
-                            : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white flex items-center justify-center'
-                        }`}
-                      >
-                        {isUpgrade ? (
-                          <>
-                            <ArrowUpCircle className="w-4 h-4 mr-1" />
-                            Upgrade
-                          </>
+          <div className="card bg-base-100 shadow-lg mb-8">
+            <div className="card-body">
+              <h2 className="card-title text-xl mb-4">
+                Mudar de Plano
+              </h2>
+              <div className="grid md:grid-cols-4 gap-4">
+                {PLANS.map((plan) => {
+                  const isUpgrade = plan.price > currentPlan.price;
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`card border ${
+                        plan.id === currentPlan.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-base-300'
+                      }`}
+                    >
+                      <div className="card-body p-4">
+                        <h3 className="font-bold text-base-content mb-2">
+                          {plan.name}
+                        </h3>
+                        <p className="text-2xl font-bold text-primary mb-3">
+                          R$ {plan.price}
+                          <span className="text-sm text-base-content/60">/mês</span>
+                        </p>
+                        {plan.id === currentPlan.id ? (
+                          <div className="text-center py-2 text-sm font-medium text-primary">
+                            Plano Atual
+                          </div>
+                        ) : plan.id === 'free' ? (
+                          <button
+                            onClick={handleCancelSubscription}
+                            disabled={actionLoading}
+                            className="btn btn-error btn-sm w-full"
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Cancelar Assinatura
+                          </button>
                         ) : (
-                          <>
-                            <ArrowDownCircle className="w-4 h-4 mr-1" />
-                            Downgrade
-                          </>
+                          <button
+                            onClick={() => handleChangePlan(plan.priceId)}
+                            disabled={actionLoading}
+                            className={`btn btn-sm w-full ${
+                              isUpgrade ? 'btn-primary' : 'btn-outline'
+                            }`}
+                          >
+                            {isUpgrade ? (
+                              <>
+                                <ArrowUpCircle className="w-4 h-4 mr-1" />
+                                Upgrade
+                              </>
+                            ) : (
+                              <>
+                                <ArrowDownCircle className="w-4 h-4 mr-1" />
+                                Downgrade
+                              </>
+                            )}
+                          </button>
                         )}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
 
         {/* Invoice History */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-            Histórico de Faturas
-          </h2>
-          {!invoices || invoices.length === 0 ? (
-            <p className="text-gray-600 dark:text-gray-300 text-center py-8">
-              Nenhuma fatura encontrada
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">
-                      Data
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">
-                      Número
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">
-                      Valor
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">
-                      Status
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((invoice) => (
-                    <tr
-                      key={invoice.id}
-                      className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <td className="py-3 px-4 text-gray-900 dark:text-white">
-                        {formatDate(invoice.paidAt || invoice.createdAt)}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-300">
-                        {invoice.invoiceNumber || invoice.number || '-'}
-                      </td>
-                      <td className="py-3 px-4 text-gray-900 dark:text-white font-medium">
-                        R$ {invoice.amount.toFixed(2)}
-                      </td>
-                      <td className="py-3 px-4">
-                        {getInvoiceStatusBadge(invoice.status)}
-                      </td>
-                      <td className="py-3 px-4">
-                        {(invoice.invoicePdfUrl || invoice.invoicePdf) && (
-                          <a
-                            href={invoice.invoicePdfUrl || invoice.invoicePdf}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center"
-                          >
-                            <Download className="w-4 h-4 mr-1" />
-                            PDF
-                          </a>
-                        )}
+        <div className="card bg-base-100 shadow-lg">
+          <div className="card-body">
+            <h2 className="card-title text-xl mb-4">
+              Histórico de Faturas
+            </h2>
+            {!invoices || invoices.length === 0 ? (
+              <p className="text-base-content/70 text-center py-8">
+                Nenhuma fatura encontrada
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="table table-zebra w-full">
+                  <thead>
+                    <tr>
+                      <th className="text-left">Data</th>
+                      <th className="text-left">Número</th>
+                      <th className="text-left">Valor</th>
+                      <th className="text-left">Status</th>
+                      <th className="text-left">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoices.map((invoice) => (
+                      <tr key={invoice.id}>
+                        <td className="text-base-content">
+                          {formatDate(invoice.paidAt || invoice.createdAt)}
+                        </td>
+                        <td className="text-base-content/70">
+                          {invoice.invoiceNumber || invoice.number || '-'}
+                        </td>
+                        <td className="text-base-content font-medium">
+                          R$ {invoice.amount.toFixed(2)}
+                        </td>
+                        <td>
+                          {getInvoiceStatusBadge(invoice.status)}
+                        </td>
+                        <td>
+                          {(invoice.invoicePdfUrl || invoice.invoicePdf) && (
+                            <a
+                              href={invoice.invoicePdfUrl || invoice.invoicePdf}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="link link-primary flex items-center gap-1"
+                            >
+                              <Download className="w-4 h-4" />
+                              PDF
+                            </a>
+                          )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

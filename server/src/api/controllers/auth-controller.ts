@@ -312,6 +312,47 @@ export class AuthController {
   async deleteAccount(req: Request, res: Response): Promise<void> {
     return deleteAccount(req, res);
   }
+
+  /**
+   * POST /api/auth/onboarding/complete
+   * Mark onboarding as completed
+   */
+  async completeOnboarding(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as any).userId;
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          message: 'Unauthorized'
+        });
+        return;
+      }
+
+      // Update user onboarding status
+      const result = await authService.completeOnboarding(userId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Onboarding completed successfully',
+        data: result
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        res.status(500).json({
+          success: false,
+          message: 'Failed to complete onboarding',
+          error: error.message
+        });
+        return;
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
 }
 
 export const authController = new AuthController();

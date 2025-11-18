@@ -32,11 +32,12 @@ export const ConversationList: React.FC = () => {
   const { instanceId } = useParams<{ instanceId: string }>();
   const navigate = useNavigate();
   const theme = useTheme();
-  const isDark = theme === 'dark';
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showArchivedView, setShowArchivedView] = useState(false);
+  const [openHeaderMenu, setOpenHeaderMenu] = useState(false);
   
   // Usar o store de autenticação global
   const token = userAuthStore((state) => state.token);
@@ -44,7 +45,7 @@ export const ConversationList: React.FC = () => {
 
   useEffect(() => {
     loadConversations();
-  }, [instanceId]);
+  }, [instanceId, showArchivedView]);
 
   // ✨ WebSocket: Escutar atualizações de conversas em tempo real
   useEffect(() => {
@@ -157,6 +158,7 @@ export const ConversationList: React.FC = () => {
       
       console.log('🔍 [ConversationList] loadConversations chamado');
       console.log('🔍 [ConversationList] instanceId da URL:', instanceId);
+      console.log('🔍 [ConversationList] showArchivedView:', showArchivedView);
       
       if (!token) {
         console.log('❌ Nenhum token encontrado, redirecionando para login...');
@@ -165,9 +167,17 @@ export const ConversationList: React.FC = () => {
         return;
       }
       
-      const url = instanceId 
-        ? `/api/conversations?instanceId=${instanceId}`
-        : '/api/conversations';
+      // Build URL based on archived view state
+      let url: string;
+      if (showArchivedView && instanceId) {
+        // Load archived conversations
+        url = `/api/conversations/instance/${instanceId}/archived`;
+      } else if (instanceId) {
+        // Load normal conversations (filter out archived ones)
+        url = `/api/conversations?instanceId=${instanceId}`;
+      } else {
+        url = '/api/conversations';
+      }
         
       console.log('🔍 [loadConversations] URL construída:', url);
       console.log('🔍 [loadConversations] instanceId da URL:', instanceId);
@@ -200,7 +210,12 @@ export const ConversationList: React.FC = () => {
           });
         }
         
-        setConversations(data.data || []);
+        // Filter out archived conversations if not in archived view
+        const filteredConversations = showArchivedView 
+          ? data.data || []
+          : (data.data || []).filter((conv: ConversationSummary) => !conv.isArchived);
+        
+        setConversations(filteredConversations);
       } else {
         console.error('❌ Erro na resposta:', response.status, response.statusText);
       }
@@ -347,12 +362,20 @@ export const ConversationList: React.FC = () => {
     if (!token) return;
     
     try {
-      await conversationService.archiveConversation(conversationId, token);
-      // Remover a conversa da lista
-      setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+      if (showArchivedView) {
+        // Unarchive the conversation
+        await conversationService.unarchiveConversation(conversationId, token);
+        // Remover da lista de arquivadas
+        setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+      } else {
+        // Archive the conversation
+        await conversationService.archiveConversation(conversationId, token);
+        // Remover da lista de ativas
+        setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+      }
     } catch (error) {
-      console.error('Erro ao arquivar conversa:', error);
-      alert('Erro ao arquivar conversa');
+      console.error('Erro ao arquivar/desarquivar conversa:', error);
+      alert('Erro ao arquivar/desarquivar conversa');
     }
   };
 
@@ -423,15 +446,49 @@ export const ConversationList: React.FC = () => {
       <div className={`p-4 border-b bg-base-100 border-base-300`}>
         <div className="flex items-center justify-between">
           <h1 className={`text-xl font-semibold text-base-content`}>
-            Conversas
+            {showArchivedView ? 'Conversas Arquivadas' : 'Conversas'}
           </h1>
           <div className="flex items-center space-x-1">
-            <button className={`p-2 rounded-full hover:bg-base-200 transition-colors`}>
-              <Archive className={`h-5 w-5 text-base-content/60`} />
+            <button 
+              onClick={() => setShowArchivedView(!showArchivedView)}
+              className={`p-2 rounded-full hover:bg-base-200 transition-colors ${showArchivedView ? 'bg-base-200' : ''}`}
+              title={showArchivedView ? 'Ver conversas ativas' : 'Ver conversas arquivadas'}
+            >
+              <Archive className={`h-5 w-5 ${showArchivedView ? 'text-primary' : 'text-base-content/60'}`} />
             </button>
-            <button className={`p-2 rounded-full hover:bg-base-200 transition-colors`}>
-              <MoreVertical className={`h-5 w-5 text-base-content/60`} />
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setOpenHeaderMenu(!openHeaderMenu)}
+                className={`p-2 rounded-full hover:bg-base-200 transition-colors`}
+                title="Mais opções"
+              >
+                <MoreVertical className={`h-5 w-5 text-base-content/60`} />
+              </button>
+              
+              {/* Header Dropdown Menu */}
+              {openHeaderMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-10"
+                    onClick={() => setOpenHeaderMenu(false)}
+                  />
+                  <div className="absolute right-0 mt-1 w-48 rounded-md shadow-lg z-20 border bg-base-100 border-base-300">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setShowArchivedView(!showArchivedView);
+                          setOpenHeaderMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm flex items-center space-x-2 hover:bg-base-200 text-base-content"
+                      >
+                        <Archive className="h-4 w-4" />
+                        <span>{showArchivedView ? 'Ver conversas ativas' : 'Ver arquivadas'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -573,7 +630,7 @@ export const ConversationList: React.FC = () => {
                                         className="w-full text-left px-4 py-2 text-sm flex items-center space-x-2 hover:bg-base-200 text-base-content"
                                       >
                                         <Archive className="h-4 w-4" />
-                                        <span>Arquivar conversa</span>
+                                        <span>{showArchivedView ? 'Desarquivar conversa' : 'Arquivar conversa'}</span>
                                       </button>
                                       
                                       <button

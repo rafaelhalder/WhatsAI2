@@ -82,7 +82,7 @@ function Navbar() {
                   }`} to={item.path}
                 key={item.name}
                 onClick={() => setActiveItem(item.name)}
-                data-tour={item.dataTour || undefined}
+                data-tour={'dataTour' in item ? item.dataTour : undefined}
               >
                 {item.name}
               </Link>
@@ -117,7 +117,7 @@ function Navbar() {
                   setActiveItem(item.name);
                   setMobileMenuOpen(false);
                 }}
-                data-tour={item.dataTour || undefined}
+                data-tour={'dataTour' in item ? item.dataTour : undefined}
               >
                 {item.name}
               </Link>

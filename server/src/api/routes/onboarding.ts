@@ -27,7 +27,7 @@ router.post('/complete', authMiddleware, async (req, res) => {
       },
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Onboarding completed successfully',
       data: {
@@ -37,7 +37,7 @@ router.post('/complete', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Error completing onboarding:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to complete onboarding',
     });
@@ -81,7 +81,7 @@ router.put('/step', authMiddleware, async (req, res) => {
       data: updateData,
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Onboarding step updated',
       data: {
@@ -91,7 +91,7 @@ router.put('/step', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating onboarding step:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to update onboarding step',
     });
@@ -128,13 +128,13 @@ router.get('/status', authMiddleware, async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: user,
     });
   } catch (error) {
     console.error('Error getting onboarding status:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to get onboarding status',
     });
@@ -164,7 +164,7 @@ router.post('/skip', authMiddleware, async (req, res) => {
       },
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Onboarding skipped',
       data: {
@@ -174,7 +174,7 @@ router.post('/skip', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Error skipping onboarding:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to skip onboarding',
     });

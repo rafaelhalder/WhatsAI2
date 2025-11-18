@@ -243,6 +243,33 @@ export class AuthService {
 
     return { user: updatedUser };
   }
+
+  /**
+   * Complete onboarding for a user
+   */
+  async completeOnboarding(userId: string) {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        onboardingCompleted: true,
+        onboardingStep: 5,
+        updatedAt: new Date()
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        active: true,
+        onboardingCompleted: true,
+        onboardingStep: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    return { user };
+  }
 }
 
 export const authService = new AuthService();

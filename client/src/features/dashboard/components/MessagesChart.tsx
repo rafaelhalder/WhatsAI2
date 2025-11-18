@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { MessageChartData } from '../types/dashboard';
 
@@ -8,6 +8,39 @@ interface MessagesChartProps {
 }
 
 export const MessagesChart: React.FC<MessagesChartProps> = ({ data, loading = false }) => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Detectar se está em dark mode
+    const checkDarkMode = () => {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme')?.includes('dark') || 
+                    html.classList.contains('dark') ||
+                    window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setIsDarkMode(isDark);
+    };
+
+    checkDarkMode();
+    
+    // Observer para mudanças de tema
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { 
+      attributes: true, 
+      attributeFilter: ['data-theme', 'class'] 
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Cores baseadas no tema
+  const textColor = isDarkMode ? '#d1d5db' : '#374151';
+  const gridColor = isDarkMode ? '#4b5563' : '#e5e7eb';
+
+  const formatDateShort = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  };
+
   if (loading) {
     return (
       <div className="card bg-base-100 shadow-xl rounded-2xl border border-base-300 p-6">
@@ -34,12 +67,6 @@ export const MessagesChart: React.FC<MessagesChartProps> = ({ data, loading = fa
     );
   }
 
-  // Format date for display
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-  };
-
   return (
     <div className="card bg-base-100 shadow-xl rounded-2xl border border-base-300 p-6">
       <h3 className="text-lg font-semibold text-base-content mb-4 flex items-center gap-2">
@@ -52,22 +79,25 @@ export const MessagesChart: React.FC<MessagesChartProps> = ({ data, loading = fa
       <div className="h-64 w-full min-h-[256px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+            <CartesianGrid 
+              strokeDasharray="3 3" 
+              stroke={gridColor}
+            />
             <XAxis
               dataKey="date"
-              tickFormatter={formatDate}
-              stroke="#6b7280"
-              fontSize={12}
+              tickFormatter={formatDateShort}
+              tick={{ fill: textColor, fontSize: 12 }}
             />
-            <YAxis stroke="#6b7280" fontSize={12} />
+            <YAxis tick={{ fill: textColor, fontSize: 12 }} />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#1f2937',
-                border: '1px solid #374151',
-                borderRadius: '8px',
-                color: '#f9fafb'
+                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
+                borderRadius: '6px',
+                color: textColor
               }}
-              labelFormatter={(value) => `Data: ${formatDate(value)}`}
+              labelStyle={{ color: textColor }}
+              labelFormatter={(value) => `Data: ${formatDateShort(value)}`}
               formatter={(value: number, name: string) => {
                 const labels = {
                   messages: 'Total',
@@ -77,14 +107,14 @@ export const MessagesChart: React.FC<MessagesChartProps> = ({ data, loading = fa
                 return [value, labels[name as keyof typeof labels] || name];
               }}
             />
-            <Legend />
+            <Legend wrapperStyle={{ color: textColor }} />
             <Line
               type="monotone"
               dataKey="messages"
               stroke="#3b82f6"
               strokeWidth={2}
-              dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
+              dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, stroke: "#3b82f6", strokeWidth: 2 }}
               name="Total"
             />
             <Line
@@ -92,8 +122,8 @@ export const MessagesChart: React.FC<MessagesChartProps> = ({ data, loading = fa
               dataKey="delivered"
               stroke="#10b981"
               strokeWidth={2}
-              dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2 }}
+              dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, stroke: "#10b981", strokeWidth: 2 }}
               name="Entregues"
             />
             <Line
@@ -101,8 +131,8 @@ export const MessagesChart: React.FC<MessagesChartProps> = ({ data, loading = fa
               dataKey="failed"
               stroke="#ef4444"
               strokeWidth={2}
-              dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2 }}
+              dot={{ fill: "#ef4444", strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, stroke: "#ef4444", strokeWidth: 2 }}
               name="Falhas"
             />
           </LineChart>

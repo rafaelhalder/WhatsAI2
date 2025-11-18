@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface PeakHoursChartProps {
@@ -7,6 +7,37 @@ interface PeakHoursChartProps {
 }
 
 export const PeakHoursChart: React.FC<PeakHoursChartProps> = ({ data, loading }) => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Detectar se está em dark mode
+    const checkDarkMode = () => {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme')?.includes('dark') || 
+                    html.classList.contains('dark') ||
+                    window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setIsDarkMode(isDark);
+    };
+
+    checkDarkMode();
+    
+    // Observer para mudanças de tema
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { 
+      attributes: true, 
+      attributeFilter: ['data-theme', 'class'] 
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Cores baseadas no tema
+  const textColor = isDarkMode ? '#d1d5db' : '#374151';
+  const gridColor = isDarkMode ? '#4b5563' : '#e5e7eb';
+
+  const formatHour = (hour: number) => {
+    return `${hour.toString().padStart(2, '0')}:00`;
+  };
   if (loading) {
     return (
       <div className="bg-base-100 p-6 rounded-xl border border-base-300">
@@ -29,10 +60,6 @@ export const PeakHoursChart: React.FC<PeakHoursChartProps> = ({ data, loading })
     );
   }
 
-  const formatHour = (hour: number) => {
-    return `${hour.toString().padStart(2, '0')}:00`;
-  };
-
   const chartData = data.map(item => ({
     ...item,
     hourLabel: formatHour(item.hour)
@@ -48,26 +75,43 @@ export const PeakHoursChart: React.FC<PeakHoursChartProps> = ({ data, loading })
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
+            <CartesianGrid 
+              strokeDasharray="3 3" 
+              stroke={gridColor} 
+            />
             <XAxis 
               dataKey="hourLabel" 
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 12, fill: textColor }}
             />
             <YAxis 
-              tick={{ fontSize: 12 }}
-              label={{ value: 'Mensagens', angle: -90, position: 'insideLeft' }}
+              tick={{ fontSize: 12, fill: textColor }}
+              label={{ 
+                value: 'Mensagens', 
+                angle: -90, 
+                position: 'insideLeft', 
+                style: {  
+                  textAnchor: 'middle', 
+                  fill: textColor 
+                } 
+              }}
             />
             <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'hsl(var(--b1))',
-                border: '1px solid hsl(var(--b3))',
-                borderRadius: '0.5rem'
+              contentStyle={{
+                backgroundColor: isDarkMode ? '#374151' : '#ffffff',
+                border: `1px solid ${gridColor}`,
+                borderRadius: '0.5rem',
+                color: textColor,
+                boxShadow: '0 4px 12px -2px rgba(0, 0, 0, 0.25)',
+              }}
+              labelStyle={{
+                color: textColor,
+                fontWeight: 'bold',
               }}
               formatter={(value: number) => [`${value} mensagens`, 'Total']}
             />
             <Bar 
               dataKey="count" 
-              fill="#8b5cf6" 
+              fill="#3b82f6"
               radius={[8, 8, 0, 0]}
             />
           </BarChart>
@@ -82,7 +126,7 @@ export const PeakHoursChart: React.FC<PeakHoursChartProps> = ({ data, loading })
             <div key={item.hour} className="badge badge-outline gap-2">
               <span className="font-semibold">#{index + 1}</span>
               <span>{formatHour(item.hour)}</span>
-              <span className="text-primary">({item.count})</span>
+              <span className="text-base-content font-medium">({item.count})</span>
             </div>
           ))}
         </div>

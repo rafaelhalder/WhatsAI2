@@ -1,11 +1,9 @@
-import { prisma } from '../database/prisma';
 import { MediaStorageService } from './media-storage';
 import { SpacesConfig } from './digitalocean-spaces';
 import { EvolutionApiService } from './evolution-api';
 import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
-import { promisify } from 'util';
 import { mediaLogger } from '../utils/media-logger';
 import sharp from 'sharp';
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
@@ -509,8 +507,6 @@ export class IncomingMediaService {
 
       // Validação adicional para imagens
       if (mediaType === 'image' && buffer.length > 0) {
-        const firstBytes = buffer.subarray(0, 8).toString('hex');
-
         // Verificar se parece uma imagem válida
         if (buffer.length < 100) {
           console.warn(`⚠️ [UPLOAD_VALIDATION] Buffer muito pequeno para imagem: ${buffer.length} bytes`);

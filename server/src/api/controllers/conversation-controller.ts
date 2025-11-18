@@ -3,7 +3,6 @@ import { ConversationService } from '../../services/conversation-service';
 import { z } from 'zod';
 import { prisma } from '../../database/prisma';
 import { MediaStorageService } from '../../services/media-storage';
-import multer from 'multer';
 
 const sendMessageSchema = z.object({
   remoteJid: z.string().min(1, 'Número do destinatário é obrigatório'),
@@ -48,6 +47,93 @@ export class ConversationController {
     });
 
     this.mediaStorageService = new MediaStorageService(spacesConfig);
+  }
+
+  /**
+   * Get profile picture for a contact dynamically
+   * This endpoint fetches a fresh profile picture URL from Evolution API
+   * preventing expired URLs from being cached
+   * 
+   * @route GET /api/conversations/picture/:instanceId/:jid
+   */
+  async getContactProfilePicture(req: Request, res: Response): Promise<void> {
+    try {
+      const { instanceId, jid } = req.params;
+
+      console.log(`🖼️ [getContactProfilePicture] Fetching picture for JID: ${jid} in instance: ${instanceId}`);
+
+      if (!instanceId || !jid) {
+        res.status(400).json({
+          success: false,
+          error: 'Instance ID and JID are required'
+        });
+        return;
+      }
+
+      // Get the instance from database
+      const instance = await prisma.whatsAppInstance.findUnique({
+        where: { id: instanceId },
+        select: {
+          evolutionInstanceName: true,
+          evolutionApiUrl: true,
+          evolutionApiKey: true,
+          status: true
+        }
+      });
+
+      if (!instance) {
+        res.status(404).json({
+          success: false,
+          error: 'Instance not found'
+        });
+        return;
+      }
+
+      if (instance.status !== 'CONNECTED') {
+        res.status(503).json({
+          success: false,
+          error: 'Instance is not connected'
+        });
+        return;
+      }
+
+      // Fetch fresh profile picture URL from Evolution API
+      const { EvolutionApiService } = await import('../../services/evolution-api');
+      const evolutionApi = new EvolutionApiService(instance.evolutionApiUrl, instance.evolutionApiKey);
+
+      // Clean the JID (remove @s.whatsapp.net, @g.us, etc.)
+      const cleanJid = jid.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@c.us', '').trim();
+
+      const result = await evolutionApi.fetchProfilePictureUrl(instance.evolutionInstanceName, cleanJid);
+
+      if (result.profilePictureUrl) {
+        console.log(`✅ [getContactProfilePicture] Fresh URL obtained for ${jid}`);
+        res.json({
+          success: true,
+          data: {
+            profilePictureUrl: result.profilePictureUrl,
+            jid: jid,
+            cached: false
+          }
+        });
+      } else {
+        console.log(`⚠️ [getContactProfilePicture] No profile picture available for ${jid}`);
+        res.json({
+          success: true,
+          data: {
+            profilePictureUrl: null,
+            jid: jid,
+            cached: false
+          }
+        });
+      }
+    } catch (error) {
+      console.error('❌ [getContactProfilePicture] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch profile picture'
+      });
+    }
   }
 
   async getConversations(req: Request, res: Response): Promise<void> {

@@ -238,6 +238,153 @@ If not found, respond with "NOT_FOUND".`;
       return null;
     }
   }
+
+  /**
+   * Generate smart reply suggestions based on incoming message
+   * Returns 3 contextual quick reply options
+   */
+  async generateSmartReplies(
+    incomingMessage: string,
+    conversationHistory?: ChatMessage[]
+  ): Promise<string[]> {
+    if (!this.isConfigured) {
+      return [];
+    }
+
+    try {
+      const systemPrompt = `You are a helpful assistant that generates quick reply suggestions for WhatsApp business conversations.
+Based on the incoming message and context, suggest 3 short, appropriate replies (max 10 words each).
+Format: Return only 3 replies, one per line, without numbering or bullets.
+Keep replies professional, helpful, and in Portuguese (Brazilian) if the message is in Portuguese.`;
+
+      const messages: ChatMessage[] = [
+        { role: 'system', content: systemPrompt },
+      ];
+
+      // Add conversation history if provided (last 5 messages for context)
+      if (conversationHistory && conversationHistory.length > 0) {
+        messages.push(...conversationHistory.slice(-5));
+      }
+
+      // Add the incoming message
+      messages.push({
+        role: 'user',
+        content: `Generate 3 quick replies for: "${incomingMessage}"`,
+      });
+
+      const response = await this.generateChatCompletion(messages, {
+        maxTokens: 100,
+        temperature: 0.8,
+      });
+
+      // Split by newlines and filter out empty lines
+      const replies = response
+        .split('\n')
+        .map(r => r.trim())
+        .filter(r => r.length > 0)
+        .slice(0, 3);
+
+      return replies;
+    } catch (error) {
+      console.error('Error generating smart replies:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Adjust message tone to different styles
+   * Helps users communicate more effectively
+   */
+  async adjustMessageTone(
+    originalMessage: string,
+    targetTone: 'professional' | 'friendly' | 'formal' | 'casual' | 'concise'
+  ): Promise<string> {
+    if (!this.isConfigured) {
+      throw new Error('OpenAI is not configured. Please set OPENAI_API_KEY in environment variables.');
+    }
+
+    const toneDescriptions = {
+      professional: 'professional, clear, and business-appropriate',
+      friendly: 'warm, friendly, and approachable',
+      formal: 'formal, respectful, and polite',
+      casual: 'casual, relaxed, and conversational',
+      concise: 'brief, concise, and to-the-point',
+    };
+
+    try {
+      const systemPrompt = `Rewrite the following message to sound ${toneDescriptions[targetTone]}.
+Keep the core meaning intact. Respond with only the rewritten message, nothing else.
+Maintain the original language (Portuguese or English).`;
+
+      return await this.generateResponse(originalMessage, systemPrompt, {
+        maxTokens: 150,
+        temperature: 0.7,
+      });
+    } catch (error) {
+      console.error('Error adjusting message tone:', error);
+      throw new Error('Failed to adjust message tone');
+    }
+  }
+
+  /**
+   * Check grammar and spelling in a message
+   * Returns corrected text and list of errors found
+   */
+  async checkGrammarAndSpelling(text: string): Promise<{
+    hasErrors: boolean;
+    correctedText: string;
+    errors: Array<{
+      original: string;
+      correction: string;
+      type: 'spelling' | 'grammar' | 'punctuation';
+      explanation: string;
+    }>;
+  }> {
+    if (!this.isConfigured || text.length < 3) {
+      return { hasErrors: false, correctedText: text, errors: [] };
+    }
+
+    try {
+      const systemPrompt = `You are a Portuguese (Brazilian) grammar and spelling checker.
+Analyze the text for errors and respond in JSON format:
+{
+  "hasErrors": boolean,
+  "correctedText": "fully corrected text",
+  "errors": [
+    {
+      "original": "wrong word or phrase",
+      "correction": "correct word or phrase",
+      "type": "spelling|grammar|punctuation",
+      "explanation": "brief explanation in Portuguese"
+    }
+  ]
+}
+If no errors, return hasErrors: false and empty errors array.
+Be strict but reasonable - only flag actual errors.`;
+
+      const response = await this.generateResponse(text, systemPrompt, {
+        maxTokens: 300,
+        temperature: 0.3, // Lower temperature for more consistent corrections
+      });
+
+      // Try to parse JSON response
+      try {
+        const result = JSON.parse(response);
+        return {
+          hasErrors: result.hasErrors || false,
+          correctedText: result.correctedText || text,
+          errors: result.errors || [],
+        };
+      } catch (parseError) {
+        // If JSON parsing fails, return no errors
+        console.error('Failed to parse grammar check response:', parseError);
+        return { hasErrors: false, correctedText: text, errors: [] };
+      }
+    } catch (error) {
+      console.error('Error checking grammar and spelling:', error);
+      return { hasErrors: false, correctedText: text, errors: [] };
+    }
+  }
 }
 
 export const openAIService = new OpenAIService();

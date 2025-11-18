@@ -24,6 +24,9 @@ import Pricing from './pages/Pricing';
 import Success from './pages/Success';
 import Cancel from './pages/Cancel';
 import Subscription from './pages/Subscription';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import LGPDCompliance from './pages/LGPDCompliance';
 
 function RegisterPage() {
   return (
@@ -189,6 +192,9 @@ export function App() {
               />
             <Route path="/success" element={<Success />} />
             <Route path="/cancel" element={<Cancel />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/lgpd" element={<LGPDCompliance />} />
             <Route
               path="/chat/:instanceId"
               element={

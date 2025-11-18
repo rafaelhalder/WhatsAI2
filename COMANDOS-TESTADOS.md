@@ -420,6 +420,34 @@ const contacts = await prisma.contact.findMany({...});
 - Use apenas comandos marcados como ✅ "FUNCIONARAM"
 - Evite comandos marcados como ❌ "FALHARAM TOTALMENTE"
 
+## 🔧 MIGRAÇÕES DE BANCO DE DADOS
+
+### 1. Aplicar Nova Migração (Desenvolvimento)
+```bash
+cd server
+npx prisma migrate dev
+```
+- **Quando usar:** Após fazer pull de mudanças que incluem novas migrações
+- **Resultado:** Aplica migrações pendentes ao banco de dados
+
+### 2. Aplicar Nova Migração (Produção)
+```bash
+cd server
+npx prisma migrate deploy
+```
+- **Quando usar:** No ambiente de produção após deploy
+- **Resultado:** Aplica apenas migrações pendentes sem resetar o banco
+
+### 3. Fix: Erro ao Excluir Conversa
+**Problema:** "Erro ao excluir conversa" ao tentar deletar conversas com mensagens
+**Solução:** Migração `20251111151138_add_cascade_delete_to_message_conversation` adiciona cascade delete
+**Como aplicar:**
+```bash
+cd server
+npx prisma migrate deploy
+```
+**Referência:** Ver `docs/CONVERSATION_DELETION_FIX.md` para detalhes completos
+
 ---
-*Última atualização: Outubro 2025*
+*Última atualização: Novembro 2025*
 *Testado no ambiente WhatsAI2 com Evolution API*

@@ -1,6 +1,5 @@
 import { prisma } from '../../database/prisma';
 import { WhatsAppInstance, InstanceStatus } from '../../types';
-import { Prisma } from '@prisma/client';
 
 export class PrismaInstanceRepository {
   async create(data: {

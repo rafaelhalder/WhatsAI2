@@ -2,6 +2,7 @@ import { ConversationRepository, CreateConversationData, UpdateConversationData,
 import { MessageRepository } from '../database/repositories/message-repository';
 import { prisma } from '../database/prisma';
 import { EvolutionApiService } from './evolution-api';
+import { MessagingService } from './messaging-service';
 import { SocketService } from './socket-service';
 import { MediaMessageService } from './messages';
 import { IncomingMediaService } from './incoming-media-service';
@@ -13,6 +14,10 @@ import {
   isLidJid
 } from '../utils/baileys-helpers';
 import { normalizeWhatsAppJid, isGroupJid } from '../utils/phone-helper';
+import axios from 'axios';
+import * as path from 'path';
+import { promises as fs } from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
 
 type Conversation = {
@@ -73,6 +78,7 @@ export class ConversationService {
   private conversationRepository: ConversationRepository;
   private messageRepository: MessageRepository;
   private evolutionApiService: EvolutionApiService;
+  private messagingService: MessagingService;
   private socketService: SocketService;
   private incomingMediaService: IncomingMediaService;
   
@@ -85,6 +91,7 @@ export class ConversationService {
     this.conversationRepository = new ConversationRepository(prisma);
     this.messageRepository = new MessageRepository(prisma);
     this.evolutionApiService = new EvolutionApiService();
+    this.messagingService = MessagingService.getInstance();
     this.socketService = SocketService.getInstance();
     this.incomingMediaService = new IncomingMediaService();
     
@@ -102,6 +109,34 @@ export class ConversationService {
     return await prisma.whatsAppInstance.findUnique({
       where: { evolutionInstanceName }
     });
+  }
+
+  /**
+   * ⚠️ DEPRECATED: This method is no longer used
+   * Profile pictures are now fetched dynamically via GET /api/conversations/picture/:instanceId/:jid
+   * Keeping for reference only
+   */
+  private async downloadAndStoreProfilePicture_DEPRECATED(profilePicUrl: string, remoteJid: string): Promise<string | null> {
+    // This method is deprecated and should not be used
+    // Profile pictures should be fetched dynamically instead of stored
+    console.warn(`⚠️ [DEPRECATED] downloadAndStoreProfilePicture called for ${remoteJid} - this method should not be used`);
+    return null;
+  }
+
+  /**
+   * Get file extension from content type
+   */
+  private getExtensionFromContentType(contentType: string): string {
+    const extensions: { [key: string]: string } = {
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'image/png': 'png',
+      'image/gif': 'gif',
+      'image/webp': 'webp',
+      'image/bmp': 'bmp'
+    };
+
+    return extensions[contentType] || 'jpg'; // Default to jpg if unknown
   }
 
   /**
@@ -237,17 +272,9 @@ export class ConversationService {
 
     const conversations = await this.conversationRepository.findByInstanceId(instanceId);
     
-    // 📸 Buscar fotos em background para conversas sem foto
-    const conversationsWithoutPicture = conversations.filter(c => !c.contactPicture);
-    if (conversationsWithoutPicture.length > 0) {
-      
-      // Buscar todas em paralelo (não esperar)
-      Promise.all(
-        conversationsWithoutPicture.map(conv => 
-          this.fetchContactInfoInBackground(conv.id, instanceId, conv.remoteJid)
-        )
-      ).catch(err => console.log('⚠️  Erro ao buscar fotos:', err.message));
-    }
+    // 🔄 REMOVED: Background fetching of profile pictures
+    // Profile pictures are no longer stored in database
+    // They should be fetched dynamically via GET /api/conversations/picture/:instanceId/:jid
     
     return conversations.map(conversation => {
       // Obter a última mensagem do relacionamento messages (primeira posição, ordenada por timestamp desc)
@@ -257,7 +284,7 @@ export class ConversationService {
         id: conversation.id,
         remoteJid: conversation.remoteJid,
         contactName: conversation.contactName,
-        contactPicture: conversation.contactPicture || '',
+        contactPicture: conversation.contactPicture || '', // Will be empty, frontend should fetch dynamically
         isGroup: conversation.isGroup,
         lastMessage: conversation.lastMessage,
         lastMessageAt: conversation.lastMessageAt,
@@ -304,11 +331,9 @@ export class ConversationService {
       remoteJid
     });
 
-    // 📸 Buscar foto de perfil em background se ainda não tiver
-    if (!conversation.contactPicture) {
-      this.fetchContactInfoInBackground(conversation.id, instanceId, remoteJid).catch(err => {
-      });
-    }
+    // 🔄 REMOVED: Background fetching of profile pictures
+    // Profile pictures should be fetched dynamically via GET /api/conversations/picture/:instanceId/:jid
+    // This prevents storing expired WhatsApp CDN URLs
 
     // Emit conversation update to frontend
     console.log(`📡 [WebSocket] Emitindo conversation:updated para instância ${instanceId}:`, {
@@ -341,53 +366,13 @@ export class ConversationService {
   }
 
   /**
-   * Busca informações do contato em background (não bloqueia)
+   * ⚠️ DEPRECATED: Busca informações do contato em background
+   * This method should no longer be used
+   * Profile pictures should be fetched dynamically via GET /api/conversations/picture/:instanceId/:jid
    */
-  private async fetchContactInfoInBackground(conversationId: string, instanceId: string, remoteJid: string): Promise<void> {
-    try {
-      const instance = await prisma.whatsAppInstance.findUnique({
-        where: { id: instanceId }
-      });
-
-      if (!instance) return;
-
-      const evolutionService = new EvolutionApiService(instance.evolutionApiUrl, instance.evolutionApiKey);
-      const number = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
-      
-      // Buscar informações do contato (pushName + foto)
-      const contacts = await evolutionService.fetchContacts(instance.evolutionInstanceName, [number]);
-      const contactInfo = contacts.find(c => c.id === remoteJid || c.id === number);
-
-      let updateData: any = {};
-
-      // Atualizar pushName se encontrado
-      if (contactInfo?.pushName) {
-        updateData.contactName = contactInfo.pushName;
-      }
-
-      // Buscar foto de perfil
-      const profilePicture = await evolutionService.fetchProfilePictureUrl(
-        instance.evolutionInstanceName,
-        number
-      );
-
-      if (profilePicture.profilePictureUrl) {
-        updateData.contactPicture = profilePicture.profilePictureUrl;
-      }
-
-      // Atualizar conversa se houver dados novos
-      if (Object.keys(updateData).length > 0) {
-        await this.conversationRepository.update(conversationId, updateData);
-
-        // Notificar frontend
-        const updatedConv = await this.conversationRepository.findById(conversationId);
-        if (updatedConv) {
-          this.socketService.emitToInstance(instanceId, 'conversation:updated', updatedConv);
-        }
-      }
-    } catch (error) {
-      // Não fazer nada, apenas log silencioso
-    }
+  private async fetchContactInfoInBackground_DEPRECATED(conversationId: string, instanceId: string, remoteJid: string): Promise<void> {
+    console.warn(`⚠️ [DEPRECATED] fetchContactInfoInBackground called - this method should not be used`);
+    return;
   }
 
   /**
@@ -426,9 +411,10 @@ export class ConversationService {
 
   /**
    * Update contact info from webhook (contacts.update event)
-   * Avoids unnecessary API calls for profile pictures and names
+   * NOTE: This method now only updates contact NAME, not pictures
+   * Profile pictures should be fetched dynamically via GET /api/conversations/picture/:instanceId/:jid
    */
-  async updateContactFromWebhook(instanceId: string, remoteJid: string, data: { contactName?: string; contactPicture?: string }): Promise<void> {
+  async updateContactFromWebhook(instanceId: string, remoteJid: string, data: { contactName?: string }): Promise<void> {
     try {
 
       // Estratégia 1: Tentar normalização padrão (detectar automaticamente se é grupo)
@@ -502,10 +488,10 @@ export class ConversationService {
           updateData.contactName = data.contactName;
         }
         
-        // Para foto de perfil, podemos atualizar normalmente (tanto individual quanto grupo)
-        if (data.contactPicture) {
-          updateData.contactPicture = data.contactPicture;
-        }
+        // 🔄 REMOVED: Profile picture handling
+        // Profile pictures are NO LONGER stored in the database
+        // They should be fetched dynamically via GET /api/conversations/picture/:instanceId/:jid
+        // This prevents storing expired WhatsApp CDN URLs
 
         if (Object.keys(updateData).length > 0) {
           await this.conversationRepository.update(conversation.id, updateData);
@@ -517,7 +503,6 @@ export class ConversationService {
               id: updated.id,
               remoteJid: updated.remoteJid,
               contactName: updated.contactName,
-              contactPicture: updated.contactPicture ? '✅ TEM FOTO' : '❌ SEM FOTO',
               isGroup: isGroupContact ? '✅ GROUP' : '❌ INDIVIDUAL'
             });
             this.socketService.emitToInstance(instanceId, 'conversation:updated', updated);
@@ -559,6 +544,54 @@ export class ConversationService {
       }
     } catch (error) {
       throw error; // Re-throw to show the error
+    }
+  }
+
+  /**
+   * Update conversation status (archive/pinned) from webhook (chats.upsert event)
+   */
+  async updateConversationStatus(
+    instanceId: string, 
+    remoteJid: string, 
+    updates: { archived?: boolean; pinned?: boolean }
+  ): Promise<void> {
+    try {
+      const normalizedJid = this.normalizeWhatsAppNumber(remoteJid, null, remoteJid.includes('@g.us'));
+
+      // Find conversation by remoteJid
+      const conversations = await this.conversationRepository.findByInstanceId(instanceId);
+      const conversation = conversations.find(c => c.remoteJid === normalizedJid);
+
+      if (conversation) {
+        const updateData: any = {};
+        
+        if (updates.archived !== undefined) {
+          updateData.isArchived = updates.archived;
+          console.log(`📦 [CONVERSATION_STATUS] ${updates.archived ? 'Archiving' : 'Unarchiving'} conversation: ${remoteJid}`);
+        }
+        
+        if (updates.pinned !== undefined) {
+          updateData.isPinned = updates.pinned;
+          console.log(`📌 [CONVERSATION_STATUS] ${updates.pinned ? 'Pinning' : 'Unpinning'} conversation: ${remoteJid}`);
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await this.conversationRepository.update(conversation.id, updateData);
+
+          // Notify frontend
+          this.socketService.emitToInstance(instanceId, 'conversation:updated', {
+            ...conversation,
+            ...updateData
+          });
+
+          console.log(`✅ [CONVERSATION_STATUS] Updated conversation status for ${remoteJid}`);
+        }
+      } else {
+        console.log(`⚠️ [CONVERSATION_STATUS] Conversation not found for ${remoteJid}`);
+      }
+    } catch (error) {
+      console.error(`❌ [CONVERSATION_STATUS] Error updating conversation status:`, error);
+      throw error;
     }
   }
 
@@ -803,15 +836,19 @@ export class ConversationService {
       }
 
 
-      // ⚡ Criar/atualizar conversa em paralelo com envio da mensagem
-      const [evolutionResponse, conversation] = await Promise.all([
-        this.evolutionApiService.sendTextMessage(
-          instance.evolutionInstanceName, 
-          normalizedRemoteJid,
-          content
-        ),
-        this.createOrUpdateConversation(instanceId, normalizedRemoteJid)
-      ]);
+      // ⚡ Criar conversa primeiro, depois enviar mensagem via messaging service
+      const conversation = await this.createOrUpdateConversation(instanceId, normalizedRemoteJid);
+
+      // 🔒 Send via Messaging Service (anti-ban queue system)
+      const result = await this.messagingService.sendTextMessage({
+        instanceId,
+        remoteJid: normalizedRemoteJid,
+        content,
+        priority: 'normal',
+        metadata: {
+          conversationId: conversation.id
+        }
+      });
 
 
       // Save message to database
@@ -821,7 +858,7 @@ export class ConversationService {
         fromMe: true,
         messageType: 'TEXT',
         content,
-        messageId: evolutionResponse.key?.id || `msg_${Date.now()}`,
+        messageId: result.messageId || `msg_${Date.now()}`,
         timestamp: new Date(),
         status: 'SENT',
         conversationId: conversation.id
@@ -1691,13 +1728,15 @@ export class ConversationService {
       }
 
 
-      // 🚨 Send to Evolution API FIRST (before transaction)
+      // 🔒 Send via Messaging Service FIRST (before transaction)
       // If this fails, we don't want to save anything to database
-      const evolutionResponse = await this.evolutionApiService.sendTextMessage(
-        instance.evolutionInstanceName,
-        normalizedRemoteJid,
-        content
-      );
+      const result = await this.messagingService.sendTextMessage({
+        instanceId,
+        remoteJid: normalizedRemoteJid,
+        content,
+        priority: 'normal',
+        metadata: {}
+      });
 
 
       // 🚨 ATOMIC TRANSACTION: All database operations in one transaction
@@ -1779,7 +1818,7 @@ export class ConversationService {
 
         // 2. Create message within transaction
         // Generate unique messageId to avoid duplicates
-        let messageId = evolutionResponse.key?.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        let messageId = result.messageId || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
         // Check if messageId already exists and generate a new one if needed
         let existingMessage = await tx.message.findUnique({

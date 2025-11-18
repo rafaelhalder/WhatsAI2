@@ -146,4 +146,9 @@ router.delete('/:conversationId', (req, res) => {
   conversationController.deleteConversation(req, res);
 });
 
+// Get contact profile picture dynamically (prevents expired URLs)
+router.get('/picture/:instanceId/:jid', (req, res) => {
+  conversationController.getContactProfilePicture(req, res);
+});
+
 export { router as conversationRoutes };

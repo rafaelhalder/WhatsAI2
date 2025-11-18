@@ -60,7 +60,7 @@ const Footer = () => {
             <ul className="space-y-2 text-base-content/70">
               <li><Link to="/privacy" className={`hover:text-primary transition-colors`}>Política de Privacidade</Link></li>
               <li><Link to="/terms" className={`hover:text-primary transition-colors`}>Termos de Serviço</Link></li>
-              <li><Link to="/cookies" className={`hover:text-primary transition-colors`}>Política de Cookies</Link></li>
+              <li><Link to="/lgpd" className={`hover:text-primary transition-colors`}>LGPD</Link></li>
             </ul>
           </div>
         </div>

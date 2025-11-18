@@ -126,6 +126,11 @@ prisma/migrations/
 
 # QR Code images
 qr-codes/
+
+# Uploaded media files (profile pictures, etc.)
+uploads/
+
+# Don't commit image files in specific directories
 *.png
 *.jpg
 *.jpeg

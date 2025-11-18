@@ -13,11 +13,13 @@ import { campaignService } from '../services/campaign-service';
 import { campaignLogger } from '../utils/campaign-logger';
 import { campaignScheduler } from '../jobs/campaign-scheduler';
 import { prisma } from '../database/prisma';
+import { MessageQueueWorker } from '../workers/message-queue-worker';
 
 export class App {
   private app: express.Application;
   private server: ReturnType<typeof createServer>;
   private socketService: SocketService;
+  private messageQueueWorker?: MessageQueueWorker;
 
   constructor() {
     this.app = express();
@@ -99,6 +101,10 @@ export class App {
   private setupRoutes(): void {
     // Serve static files (for test client)
     this.app.use('/static', express.static('public'));
+    
+    // Serve uploaded media files (profile pictures, etc.)
+    this.app.use('/uploads', express.static('uploads'));
+    
     this.app.get('/test', (req, res) => {
       res.sendFile('test-client.html', { root: '.' });
     });
@@ -265,6 +271,15 @@ export class App {
       campaignScheduler.start();
       console.log('✅ [APP] Campaign scheduler iniciado');
 
+      // Start message queue worker if enabled
+      if (env.USE_MESSAGE_QUEUE) {
+        console.log('🚀 [APP] Iniciando message queue worker...');
+        this.messageQueueWorker = new MessageQueueWorker();
+        console.log('✅ [APP] Message queue worker iniciado');
+      } else {
+        console.log('⚠️  [APP] Message queue desabilitado (USE_MESSAGE_QUEUE = false)');
+      }
+
       const port = env.PORT;
       console.log(`🚀 [APP] Iniciando servidor na porta ${port}...`);
 
@@ -283,6 +298,13 @@ export class App {
   public async stop(): Promise<void> {
     console.log('⏹️ [APP] Parando campaign scheduler...');
     campaignScheduler.stop();
+    
+    // Stop message queue worker
+    if (this.messageQueueWorker) {
+      console.log('⏹️ [APP] Parando message queue worker...');
+      await this.messageQueueWorker.close();
+      console.log('✅ [APP] Message queue worker parado');
+    }
     
     return new Promise((resolve) => {
       this.server.close(() => {

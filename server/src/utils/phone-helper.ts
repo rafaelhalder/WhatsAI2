@@ -13,7 +13,7 @@
  * - Brazilian number handling with DDD support
  */
 
-import { parsePhoneNumber, ParseError, PhoneNumber, CountryCode } from 'libphonenumber-js';
+import { parsePhoneNumber, PhoneNumber, CountryCode } from 'libphonenumber-js';
 import { normalizeWhatsAppNumber as normalizeWithBaileys } from './baileys-helpers';
 
 /**

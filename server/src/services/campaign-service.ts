@@ -12,7 +12,7 @@ import {
   ListCampaignsQuery 
 } from '../schemas/campaign-schemas';
 import { templateService } from './template-service';
-import { EvolutionApiService } from './evolution-api';
+import { MessagingService } from './messaging-service';
 import { PlansService } from './plans-service';
 import { EventEmitter } from 'events';
 import { campaignLogger } from '../utils/campaign-logger';
@@ -516,8 +516,7 @@ export class CampaignService extends EventEmitter {
         await prisma.campaign.update({
           where: { id: campaign.id },
           data: { 
-            status: 'PAUSED',
-            pausedAt: new Date()
+            status: 'PAUSED'
           }
         });
 
@@ -563,25 +562,27 @@ export class CampaignService extends EventEmitter {
         finalMessage = templateService.renderTemplate(message.message, {});
       }
 
-      // Send via Evolution API
-      const evolutionService = new EvolutionApiService(
-        campaign.instance.evolutionApiUrl,
-        campaign.instance.evolutionApiKey
-      );
+      // Send via Messaging Service (anti-ban queue system)
+      const messagingService = MessagingService.getInstance();
 
       const whatsappNumber = message.recipient.includes('@') 
         ? message.recipient 
         : `${message.recipient}@s.whatsapp.net`;
 
-      await evolutionService.sendTextMessage(
-        campaign.instance.evolutionInstanceName,
-        whatsappNumber,
-        finalMessage
-      );
+      const result = await messagingService.sendTextMessage({
+        instanceId: campaign.instanceId,
+        remoteJid: whatsappNumber,
+        content: finalMessage,
+        priority: 'normal',
+        metadata: {
+          userId: campaign.userId
+        }
+      });
 
-      campaignLogger.log(`✅ [CAMPAIGN] Mensagem enviada com sucesso`, { 
+      campaignLogger.log(`✅ [CAMPAIGN] Mensagem enviada com sucesso via ${messagingService.isQueueEnabled() ? 'QUEUE' : 'DIRECT'}`, { 
         recipient: message.recipient,
-        messageId 
+        messageId: result.messageId,
+        success: result.success
       });
 
       // Update message status

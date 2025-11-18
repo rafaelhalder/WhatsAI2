@@ -127,14 +127,6 @@ export class ConversationRepository {
 
     console.log('🔍 [ConversationRepository] Conversas encontradas (não arquivadas):', result.length);
 
-    // Também verificar quantas conversas arquivadas existem
-    const archivedCount = await (this.prisma as any).conversation.count({
-      where: {
-        instanceId,
-        isArchived: true
-      }
-    });
-
     return result;
   }
 

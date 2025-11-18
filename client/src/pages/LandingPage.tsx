@@ -106,10 +106,10 @@ export const LandingPage: React.FC = () => {
       price: 297,
       icon: Crown,
       features: [
-        '✨ Instâncias ilimitadas',
-        '✨ Mensagens ilimitadas',
-        '✨ Templates ilimitados',
-        '✨ Campanhas ilimitadas',
+        'Instâncias ilimitadas',
+        'Mensagens ilimitadas',
+        'Templates ilimitados',
+        'Campanhas ilimitadas',
         'Chatbot com IA',
         'API completa + Webhooks',
         'White label',
@@ -445,7 +445,7 @@ export const LandingPage: React.FC = () => {
                 Começar Grátis Agora
                 <ArrowRight className="w-5 h-5" />
               </a>
-              <a href="#pricing" className="btn btn-outline btn-lg text-white border-white hover:bg-white hover:text-primary">
+              <a href="#pricing" className="btn btn-outline btn-lg border-primary-content text-primary-content hover:bg-primary-content hover:text-primary">
                 Ver Planos
               </a>
             </div>

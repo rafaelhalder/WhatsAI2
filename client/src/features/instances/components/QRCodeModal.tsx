@@ -72,7 +72,7 @@ export default function QRCodeModal({ instance, onClose, onRefresh }: QRCodeModa
         {hasQRCode ? (
           <div className="space-y-4">
             {/* QR Code Image */}
-            <div className="flex justify-center items-center bg-white p-4 rounded-lg border border-base-300">
+            <div className="flex justify-center items-center bg-base-100 p-4 rounded-lg border border-base-300">
               <img 
                 src={instance.qrCode} 
                 alt="QR Code WhatsApp" 

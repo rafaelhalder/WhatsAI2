@@ -1,5 +1,3 @@
-import { Message } from '@prisma/client';
-
 export enum MessageType {
   TEXT = 'TEXT',
   IMAGE = 'IMAGE',

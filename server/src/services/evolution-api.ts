@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { WhatsAppInstance, InstanceStatus, QRCodeData } from '../types';
+import { WhatsAppInstance, InstanceStatus } from '../types';
 import { env } from '../config/env';
 
 interface EvolutionApiConfig {
@@ -253,9 +253,13 @@ export class EvolutionApiService {
 
   async checkIsWhatsApp(instanceName: string, numbers: string[]): Promise<any> {
     try {
+      // Limpar números (remover sufixos WhatsApp)
+      const cleanNumbers = numbers.map(num => 
+        num.replace(/@s\.whatsapp\.net/g, '').replace(/@g\.us/g, '').replace(/@c\.us/g, '').trim()
+      );
       
       const payload = {
-        numbers: numbers
+        numbers: cleanNumbers
       };
       
       const response = await this.client.post(`/chat/whatsappNumbers/${instanceName}`, payload);
@@ -318,6 +322,9 @@ export class EvolutionApiService {
 
   async sendMediaMessage(instanceName: string, number: string, mediaUrl: string, caption?: string, mediaType?: string): Promise<any> {
     try {
+      // Garantir que o número esteja no formato correto do WhatsApp (sem @s.whatsapp.net para Evolution API)
+      const cleanNumber = number.includes('@') ? number.replace('@s.whatsapp.net', '').replace('@g.us', '') : number;
+      
       // Download the file from the URL and convert to base64
       const mediaResponse = await this.client.get(mediaUrl, { responseType: 'arraybuffer' });
       const base64Data = Buffer.from(mediaResponse.data).toString('base64');
@@ -333,7 +340,7 @@ export class EvolutionApiService {
       console.log(`✅ [sendMediaMessage] Media downloaded and converted to base64 (${base64Data.length} chars)`);
 
       const response = await this.client.post(`/message/sendMedia/${instanceName}`, {
-        number: number,
+        number: cleanNumber,
         mediatype: mediaType || this.getMediaTypeFromMimeType(mimetype),
         mimetype: mimetype,
         caption: caption || '',
@@ -455,10 +462,20 @@ export class EvolutionApiService {
         this.profilePictureFailCache.delete(cacheKey);
       }
       
+      // Limpar e validar o número (remover qualquer sufixo WhatsApp que possa ter sido esquecido)
+      const cleanNumber = number.replace(/@s\.whatsapp\.net/g, '').replace(/@g\.us/g, '').replace(/@c\.us/g, '').trim();
+      
+      // Validar formato do número (apenas dígitos)
+      if (!cleanNumber || !/^\d+$/.test(cleanNumber)) {
+        console.error(`❌ [fetchProfilePictureUrl] Número inválido: "${number}" (limpo: "${cleanNumber}")`);
+        return { profilePictureUrl: null };
+      }
+      
+      console.log(`🔍 [fetchProfilePictureUrl] Buscando foto para: ${cleanNumber} (instância: ${instanceName})`);
       
       // Endpoint correto segundo documentação: fetchProfilePictureUrl (com 'u' minúsculo)
       const response = await this.client.post(`/chat/fetchProfilePictureUrl/${instanceName}`, {
-        number: number
+        number: cleanNumber
       });
 
       
@@ -467,11 +484,28 @@ export class EvolutionApiService {
         this.profilePictureFailCache.delete(cacheKey);
       }
       
+      console.log(`✅ [fetchProfilePictureUrl] Foto obtida com sucesso para ${cleanNumber}`);
+      
       return {
         profilePictureUrl: response.data?.profilePictureUrl || null
       };
     } catch (error: any) {
-      console.error('❌ Error fetching profile picture:', error.response?.data || error.message);
+      // Enhanced error logging para debug de Bad Request
+      console.error(`❌ [fetchProfilePictureUrl] Erro ao buscar foto de perfil:`);
+      console.error(`   Instância: ${instanceName}`);
+      console.error(`   Número: ${number}`);
+      console.error(`   Status: ${error.response?.status || 'N/A'}`);
+      console.error(`   Status Text: ${error.response?.statusText || 'N/A'}`);
+      console.error(`   Dados do erro: ${JSON.stringify(error.response?.data || {}, null, 2)}`);
+      
+      // Tentar acessar a mensagem de erro de diferentes formas
+      const errorMsg = error.response?.data?.response?.message || error.response?.data?.message;
+      console.error(`   Mensagem completa: ${JSON.stringify(errorMsg, null, 2)}`);
+      console.error(`   Mensagem: ${error.message}`);
+      
+      // Log do payload enviado para debug
+      const cleanNumber = number.replace(/@s\.whatsapp\.net/g, '').replace(/@g\.us/g, '').replace(/@c\.us/g, '').trim();
+      console.error(`   Payload enviado: ${JSON.stringify({ number: cleanNumber }, null, 2)}`);
       
       // Gerenciar cache de falhas
       const cacheKey = `${instanceName}:${number}`;
@@ -514,16 +548,44 @@ export class EvolutionApiService {
   }>> {
     try {
       
-      const payload: any = {};
+      // Testar diferentes formatos de payload
+      let payload: any;
+      
       if (numbers && numbers.length > 0) {
-        payload.where = numbers.map(num => ({ id: num }));
+        // Formato 1: Tentar com array simples de números
+        payload = {
+          numbers: numbers.map(num => {
+            // Garantir que o número esteja limpo (sem sufixos WhatsApp)
+            return num.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@c.us', '').trim();
+          })
+        };
+      } else {
+        payload = {};
       }
+
+      console.log('🔍 [fetchContacts] Payload:', JSON.stringify(payload, null, 2));
+      console.log('🔍 [fetchContacts] Instance:', instanceName);
+      console.log('🔍 [fetchContacts] Numbers:', numbers);
 
       const response = await this.client.post(`/chat/findContacts/${instanceName}`, payload);
 
       return response.data || [];
     } catch (error: any) {
-      console.error('❌ Error fetching contacts:', error.response?.data || error.message);
+      console.error('❌ Error fetching contacts:', {
+        status: error.response?.status,
+        error: error.response?.statusText,
+        response: error.response?.data
+      });
+      
+      // Tentar acessar a mensagem de erro de diferentes formas
+      const errorMsg = error.response?.data?.response?.message || error.response?.data?.message;
+      console.error('Full error message array:', JSON.stringify(errorMsg, null, 2));
+      
+      const errorPayload: any = {};
+      if (numbers && numbers.length > 0) {
+        errorPayload.numbers = numbers.map(num => num.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@c.us', '').trim());
+      }
+      console.error('Payload that caused error:', JSON.stringify(errorPayload, null, 2));
       return [];
     }
   }

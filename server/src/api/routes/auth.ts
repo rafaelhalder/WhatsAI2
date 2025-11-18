@@ -46,4 +46,11 @@ router.post('/change-password', authMiddleware, (req, res) => authController.cha
  */
 router.delete('/delete-account', authMiddleware, (req, res) => authController.deleteAccount(req, res));
 
+/**
+ * POST /api/auth/onboarding/complete
+ * Mark onboarding as completed
+ * Protected route
+ */
+router.post('/onboarding/complete', authMiddleware, (req, res) => authController.completeOnboarding(req, res));
+
 export { router as authRoutes };

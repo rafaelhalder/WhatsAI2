@@ -1,5 +1,5 @@
 import { DigitalOceanSpacesService, SpacesConfig, UploadResult } from './digitalocean-spaces';
-import { MediaMessageService, SendMediaOptions } from './messages';
+import { MediaMessageService } from './messages';
 import { Message } from '@prisma/client';
 
 export interface MediaUploadOptions {

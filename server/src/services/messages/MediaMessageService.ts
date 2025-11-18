@@ -1,7 +1,7 @@
 import { prisma } from '../../database/prisma';
 import { SocketService } from '../socket-service';
-import { EvolutionApiService } from '../evolution-api';
-import { MessageType, MessageTypeService } from './MessageTypeService';
+import { MessagingService } from '../messaging-service';
+import { MessageType } from './MessageTypeService';
 import { Message } from '@prisma/client';
 
 export interface SendMediaOptions {
@@ -23,11 +23,11 @@ export interface SendMediaOptions {
 }
 
 export class MediaMessageService {
-  private evolutionApiService: EvolutionApiService;
+  private messagingService: MessagingService;
   private socketService: SocketService;
 
   constructor() {
-    this.evolutionApiService = new EvolutionApiService();
+    this.messagingService = MessagingService.getInstance();
     this.socketService = SocketService.getInstance();
   }
 
@@ -52,14 +52,20 @@ export class MediaMessageService {
       }
 
 
-      // Enviar para Evolution API
-      const evolutionResponse = await this.evolutionApiService.sendMediaMessage(
-        instance.evolutionInstanceName,
-        normalizedRemoteJid,
+      // Enviar via Messaging Service (anti-ban queue system)
+      const sendOptions: any = {
+        instanceId,
+        remoteJid: normalizedRemoteJid,
         mediaUrl,
-        caption,
-        mediaType // Pass the mediaType parameter
-      );
+        mediaType,
+        priority: 'normal'
+      };
+      
+      // Only add optional properties if they have values
+      if (caption !== undefined) sendOptions.caption = caption;
+      if (fileName !== undefined) sendOptions.fileName = fileName;
+      
+      const result = await this.messagingService.sendMediaMessage(sendOptions);
 
 
       // Criar/atualizar conversa
@@ -72,7 +78,7 @@ export class MediaMessageService {
         fromMe: true,
         messageType: this.mapMediaTypeToMessageType(mediaType),
         content: caption || this.getDefaultContent(mediaType, fileName),
-        messageId: evolutionResponse.key?.id || `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        messageId: result.messageId || `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         timestamp: new Date(),
         status: 'SENT',
         conversationId: conversation.id,

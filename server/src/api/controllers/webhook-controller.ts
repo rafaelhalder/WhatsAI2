@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { WebhookEvent } from '../../types';
 import { SocketService } from '../../services/socket-service';
 import { ConversationService } from '../../services/conversation-service';
 import { EvolutionApiService } from '../../services/evolution-api';
@@ -345,7 +344,7 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
           // O processamento real acontece no messages.upsert subsequente
         }
         
-        // 👤 Process contact updates (CONTACTS_UPDATE) - FOTO E NOME AUTOMÁTICOS!
+        // 👤 Process contact updates (CONTACTS_UPDATE) - NOME AUTOMÁTICO (NÃO FOTO)!
         if (validatedWebhookData.event === 'contacts.update') {
           
           // Validar com schema específico
@@ -375,57 +374,16 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
             
             
             if (remoteJid && (profilePicUrl || pushName)) {
+              // 🔄 IMPORTANT: DO NOT save profilePicUrl to database
+              // Profile pictures should be fetched dynamically via GET /api/conversations/picture/:instanceId/:jid
+              // This prevents storing expired WhatsApp CDN URLs
               await this.conversationService.updateContactFromWebhook(instanceId, remoteJid, {
-                ...(pushName && { contactName: pushName }),
-                ...(profilePicUrl && { contactPicture: profilePicUrl })
+                ...(pushName && { contactName: pushName })
+                // ❌ REMOVED: ...(profilePicUrl && { contactPicture: profilePicUrl })
               });
 
-              // 🔍 [AUTO_DETECT] Quando foto de perfil é atualizada, verificar se há duplicata
-              if (profilePicUrl) {
-                try {
-                  const { findDuplicatesByPicture, mergeConversations } = await import('../../utils/conversation-merger');
-                  
-                  // Buscar conversa que foi atualizada
-                  const updatedConv = await prisma.conversation.findFirst({
-                    where: { remoteJid, instanceId: instance.id }
-                  });
-
-                  if (updatedConv) {
-                    // Verificar se é @lid ou número real
-                    const isLid = remoteJid.includes('@lid');
-                    const searchPattern = isLid 
-                      ? { contains: '@s.whatsapp.net', not: { contains: '@lid' } }
-                      : { contains: '@lid' };
-
-                    // Buscar conversa com mesma foto mas JID diferente
-                    const duplicate = await prisma.conversation.findFirst({
-                      where: {
-                        instanceId: instance.id,
-                        contactPicture: profilePicUrl,
-                        remoteJid: searchPattern,
-                        id: { not: updatedConv.id }
-                      }
-                    });
-
-                    if (duplicate) {
-                      console.log(`🔀 [AUTO_DETECT] Duplicata detectada por foto de perfil!`);
-                      console.log(`   Conv 1: ${updatedConv.remoteJid}`);
-                      console.log(`   Conv 2: ${duplicate.remoteJid}`);
-                      
-                      // Decidir qual é @lid e qual é número real
-                      const lidJid = isLid ? remoteJid : duplicate.remoteJid;
-                      const realJid = isLid ? duplicate.remoteJid : remoteJid;
-
-                      // Unificar automaticamente
-                      const mergeResult = await mergeConversations(lidJid, realJid);
-                      console.log(`✅ [AUTO_MERGE] Unificação automática concluída: ${mergeResult.messagesMigrated} mensagens`);
-                    }
-                  }
-                } catch (autoMergeError) {
-                  console.error(`❌ [AUTO_DETECT] Erro ao detectar/unificar duplicata:`, autoMergeError);
-                  // Não falhar o processamento do webhook
-                }
-              }
+              // ℹ️ REMOVED: Auto-detection of duplicates by profile picture
+              // Since we no longer store profile pictures in database, this logic is not applicable
             } else {
             }
           }
@@ -460,7 +418,23 @@ Message: ${webhookData.data?.message ? JSON.stringify(webhookData.data.message).
                   const unreadMessages = chat.unreadMessages || 0;
 
                   if (remoteJid) {
+                    // Update unread count
                     await this.conversationService.updateUnreadCount(data.instanceId, remoteJid, unreadMessages);
+                    
+                    // Update archive/pinned status if provided
+                    const statusUpdates: { archived?: boolean; pinned?: boolean } = {};
+                    
+                    if (chat.archived !== undefined) {
+                      statusUpdates.archived = chat.archived;
+                    }
+                    
+                    if (chat.pinned !== undefined) {
+                      statusUpdates.pinned = chat.pinned;
+                    }
+                    
+                    if (Object.keys(statusUpdates).length > 0) {
+                      await this.conversationService.updateConversationStatus(data.instanceId, remoteJid, statusUpdates);
+                    }
                   }
                 }
               },

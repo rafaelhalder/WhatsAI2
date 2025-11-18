@@ -5,7 +5,6 @@ import './instrument';
 import 'dotenv/config';
 
 import { App } from './core/app';
-import { env } from './config/env';
 
 async function bootstrap() {
   try {

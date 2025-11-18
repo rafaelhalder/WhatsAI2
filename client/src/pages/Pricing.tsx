@@ -157,33 +157,33 @@ export default function Pricing() {
 
   const getButtonStyle = (plan: Plan): string => {
     if (plan.id === currentPlanId) {
-      return 'bg-gray-400 cursor-not-allowed';
+      return 'btn-disabled';
     }
     
     if (plan.id === 'free') {
-      return 'bg-gray-600 hover:bg-gray-700';
+      return 'btn-neutral';
     }
 
     return plan.popular
-      ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-      : 'bg-blue-600 hover:bg-blue-700';
+      ? 'btn-primary'
+      : 'btn-secondary';
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-base-200">
       {/* Header */}
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold text-base-content mb-4">
             Escolha seu plano
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+          <p className="text-xl text-base-content/70 max-w-2xl mx-auto">
             Comece grátis e escale conforme seu negócio cresce
           </p>
 
-          <div className="mt-6 inline-flex items-center px-4 py-2 bg-green-100 dark:bg-green-900 rounded-full">
-            <Zap className="w-4 h-4 text-green-600 dark:text-green-400 mr-2" />
-            <span className="text-sm font-medium text-green-800 dark:text-green-200">
+          <div className="mt-6 inline-flex items-center px-4 py-2 bg-success/10 rounded-full">
+            <Zap className="w-4 h-4 text-success mr-2" />
+            <span className="text-sm font-medium text-success">
               14 dias de teste grátis em todos os planos pagos
             </span>
           </div>
@@ -194,42 +194,42 @@ export default function Pricing() {
           {PLANS.map((plan) => (
             <div
               key={plan.id}
-              className={`relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden transition-transform hover:scale-105 ${
-                plan.popular ? 'ring-2 ring-blue-500' : ''
+              className={`relative card bg-base-100 shadow-xl overflow-hidden transition-transform hover:scale-105 ${
+                plan.popular ? 'ring-2 ring-primary' : ''
               }`}
             >
               {/* Popular Badge */}
               {plan.popular && (
-                <div className="absolute top-0 right-0 bg-blue-500 text-white px-4 py-1 text-xs font-bold rounded-bl-lg">
+                <div className="absolute top-0 right-0 badge badge-primary px-4 py-1 text-xs font-bold rounded-bl-lg rounded-tr-2xl">
                   MAIS POPULAR
                 </div>
               )}
 
               {/* Current Plan Badge */}
               {plan.id === currentPlanId && user && (
-                <div className="absolute top-0 left-0 bg-green-500 text-white px-4 py-1 text-xs font-bold rounded-br-lg">
+                <div className="absolute top-0 left-0 badge badge-success px-4 py-1 text-xs font-bold rounded-br-lg rounded-tl-2xl">
                   SEU PLANO
                 </div>
               )}
 
-              <div className="p-8">
+              <div className="card-body">
                 {/* Plan Name */}
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                <h3 className="card-title text-2xl font-bold text-base-content mb-2">
                   {plan.name}
                 </h3>
 
                 {/* Price */}
                 <div className="mb-6">
                   <div className="flex items-baseline">
-                    <span className="text-5xl font-extrabold text-gray-900 dark:text-white">
+                    <span className="text-5xl font-extrabold text-base-content">
                       R$ {plan.price}
                     </span>
                     {plan.price > 0 && (
-                      <span className="ml-2 text-gray-500 dark:text-gray-400">/mês</span>
+                      <span className="ml-2 text-base-content/60">/mês</span>
                     )}
                   </div>
                   {plan.id !== 'free' && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-sm text-base-content/60 mt-1">
                       Teste grátis por 14 dias
                     </p>
                   )}
@@ -239,11 +239,11 @@ export default function Pricing() {
                 <button
                   onClick={() => handleSubscribe(plan)}
                   disabled={loading === plan.id || plan.id === currentPlanId}
-                  className={`w-full py-3 px-6 rounded-lg font-semibold transition-all text-white ${
+                  className={`btn w-full ${
                     getButtonStyle(plan)
                   } ${
                     loading === plan.id || plan.id === currentPlanId
-                      ? 'opacity-50 cursor-not-allowed'
+                      ? 'opacity-50'
                       : ''
                   }`}
                 >
@@ -261,8 +261,8 @@ export default function Pricing() {
                 <ul className="mt-8 space-y-4">
                   {plan.features.map((feature, index) => (
                     <li key={index} className="flex items-start">
-                      <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-600 dark:text-gray-300 text-sm">
+                      <Check className="w-5 h-5 text-success mr-3 flex-shrink-0 mt-0.5" />
+                      <span className="text-base-content/80 text-sm">
                         {feature}
                       </span>
                     </li>
@@ -275,70 +275,80 @@ export default function Pricing() {
 
         {/* FAQ Section */}
         <div className="mt-24 max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">
+          <h2 className="text-3xl font-bold text-center text-base-content mb-12">
             Perguntas Frequentes
           </h2>
 
           <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Como funciona o teste grátis?
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300">
-                Você tem 14 dias para testar qualquer plano pago sem custo. Após o período de
-                teste, sua assinatura será automaticamente convertida para o plano escolhido.
-                Você pode cancelar a qualquer momento durante o período de teste.
-              </p>
+            <div className="card bg-base-100 shadow-md">
+              <div className="card-body">
+                <h3 className="text-lg font-semibold text-base-content mb-2">
+                  Como funciona o teste grátis?
+                </h3>
+                <p className="text-base-content/70">
+                  Você tem 14 dias para testar qualquer plano pago sem custo. Após o período de
+                  teste, sua assinatura será automaticamente convertida para o plano escolhido.
+                  Você pode cancelar a qualquer momento durante o período de teste.
+                </p>
+              </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Posso trocar de plano depois?
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300">
-                Sim! Você pode fazer upgrade ou downgrade do seu plano a qualquer momento.
-                Mudanças de plano são proporcionais ao tempo restante do ciclo de cobrança.
-              </p>
+            <div className="card bg-base-100 shadow-md">
+              <div className="card-body">
+                <h3 className="text-lg font-semibold text-base-content mb-2">
+                  Posso trocar de plano depois?
+                </h3>
+                <p className="text-base-content/70">
+                  Sim! Você pode fazer upgrade ou downgrade do seu plano a qualquer momento.
+                  Mudanças de plano são proporcionais ao tempo restante do ciclo de cobrança.
+                </p>
+              </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Como posso cancelar minha assinatura?
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300">
-                Você pode cancelar sua assinatura a qualquer momento através do portal de
-                gerenciamento ou entrando em contato com nosso suporte. Não há multas ou taxas
-                de cancelamento.
-              </p>
+            <div className="card bg-base-100 shadow-md">
+              <div className="card-body">
+                <h3 className="text-lg font-semibold text-base-content mb-2">
+                  Como posso cancelar minha assinatura?
+                </h3>
+                <p className="text-base-content/70">
+                  Você pode cancelar sua assinatura a qualquer momento através do portal de
+                  gerenciamento ou entrando em contato com nosso suporte. Não há multas ou taxas
+                  de cancelamento.
+                </p>
+              </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Quais formas de pagamento são aceitas?
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300">
-                Aceitamos cartões de crédito (Visa, Mastercard, American Express, etc.) através
-                do Stripe, nossa plataforma de pagamentos segura.
-              </p>
+            <div className="card bg-base-100 shadow-md">
+              <div className="card-body">
+                <h3 className="text-lg font-semibold text-base-content mb-2">
+                  Quais formas de pagamento são aceitas?
+                </h3>
+                <p className="text-base-content/70">
+                  Aceitamos cartões de crédito (Visa, Mastercard, American Express, etc.) através
+                  do Stripe, nossa plataforma de pagamentos segura.
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* CTA Section */}
-        <div className="mt-24 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Pronto para começar?
-          </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Junte-se a milhares de empresas que confiam no WhatsAI para automatizar suas
-            comunicações
-          </p>
-          <button
-            onClick={() => handleSubscribe(PLANS[1])} // STARTER plan
-            className="bg-white text-blue-600 px-8 py-4 rounded-lg font-bold text-lg hover:bg-gray-100 transition-colors"
-          >
-            Começar Teste Grátis
-          </button>
+        <div className="mt-24 card bg-gradient-to-r from-primary to-secondary text-primary-content shadow-2xl">
+          <div className="card-body items-center text-center p-12">
+            <h2 className="card-title text-3xl md:text-4xl font-bold mb-4">
+              Pronto para começar?
+            </h2>
+            <p className="text-xl opacity-90 mb-8 max-w-2xl">
+              Junte-se a milhares de empresas que confiam no WhatsAI para automatizar suas
+              comunicações
+            </p>
+            <button
+              onClick={() => handleSubscribe(PLANS[1])} // STARTER plan
+              className="btn btn-neutral btn-lg"
+            >
+              Começar Teste Grátis
+            </button>
+          </div>
         </div>
       </div>
     </div>
